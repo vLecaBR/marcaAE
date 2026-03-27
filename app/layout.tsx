@@ -1,8 +1,8 @@
 import type { Metadata } from "next"
 import { Inter, Geist_Mono } from "next/font/google"
-import { SessionProvider } from "next-auth/react"
 import { auth } from "@/auth"
 import { cn } from "@/lib/utils"
+import { AuthProvider } from "@/components/auth-provider"
 import "./globals.css"
 
 const inter = Inter({
@@ -36,9 +36,9 @@ export default async function RootLayout({
           geistMono.variable
         )}
       >
-        <SessionProvider session={session}>
+        <AuthProvider session={session}>
           {children}
-        </SessionProvider>
+        </AuthProvider>
       </body>
     </html>
   )
