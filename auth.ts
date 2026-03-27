@@ -5,16 +5,30 @@ import authConfig from "./auth.config"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
-  session: { strategy: "database" },
-  ...authConfig, // Puxa as configurações do Google
-  
+
+  session: { strategy: "jwt" },
+
+  ...authConfig,
+
   callbacks: {
-    async session({ session, user }) {
+    async jwt({ token, user }) {
+      // roda no login
+      if (user) {
+        token.id = user.id
+        token.username = (user as any).username
+        token.onboarded = (user as any).onboarded
+        token.timeZone = (user as any).timeZone
+      }
+      return token
+    },
+
+    async session({ session, token }) {
       if (session.user) {
-        session.user.id = user.id
-        session.user.username = (user as any).username ?? null
-        session.user.onboarded = (user as any).onboarded ?? false
-        session.user.timeZone = (user as any).timeZone ?? "America/Sao_Paulo"
+        session.user.id = token.id as string
+        session.user.username = (token as any).username ?? null
+        session.user.onboarded = (token as any).onboarded ?? false
+        session.user.timeZone =
+          (token as any).timeZone ?? "America/Sao_Paulo"
       }
       return session
     },
@@ -23,6 +37,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   events: {
     async createUser({ user }) {
       if (!user.id) return
+
       await prisma.schedule.create({
         data: {
           userId: user.id,
