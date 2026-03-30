@@ -56,7 +56,7 @@ export function EventTypeList({ eventTypes, username }: EventTypeListProps) {
         {/* Botão de novo evento */}
         <button
           onClick={() => setIsFormOpen(true)}
-          className="flex min-h-[160px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-zinc-700 bg-transparent text-zinc-500 transition-all hover:border-violet-600/50 hover:bg-violet-600/5 hover:text-violet-400"
+          className="flex min-h-40 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-zinc-700 bg-transparent text-zinc-500 transition-all hover:border-violet-600/50 hover:bg-violet-600/5 hover:text-violet-400"
         >
           <div className="flex h-10 w-10 items-center justify-center rounded-full border border-dashed border-current">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
