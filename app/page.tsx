@@ -1,65 +1,133 @@
-import Image from "next/image";
+// app/page.tsx
+import { auth } from "@/auth"
+import { redirect } from "next/navigation"
+import Link from "next/link"
 
-export default function Home() {
+export default async function RootPage() {
+  const session = await auth()
+
+  if (session?.user) {
+    if (!session.user.onboarded) redirect("/onboarding")
+    redirect("/dashboard")
+  }
+
+  // Landing page para visitantes não autenticados
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="flex min-h-screen flex-col items-center justify-center bg-[#09090b] px-4">
+      <div className="mx-auto max-w-2xl text-center space-y-8">
+
+        {/* Logo */}
+        <div className="inline-flex items-center gap-2.5">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600">
+            <svg
+              className="h-5 w-5 text-white"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2.5}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"
+              />
+            </svg>
+          </span>
+          <span className="text-2xl font-semibold tracking-tight text-white">
+            People <span className="text-violet-400">OS</span>
+          </span>
+        </div>
+
+        {/* Headline */}
+        <div className="space-y-4">
+          <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+            Agendamento inteligente{" "}
+            <span className="text-violet-400">sem fricção</span>
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-lg text-zinc-400 max-w-xl mx-auto">
+            Compartilhe seu link, deixe as pessoas escolherem o horário.
+            Sem trocas de e-mail, sem conflitos, sem double-booking.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-39.5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+
+        {/* CTA */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          <Link
+            href="/login"
+            className="w-full sm:w-auto rounded-xl bg-violet-600 px-8 py-3 text-sm font-medium text-white transition-all hover:bg-violet-500 active:scale-[0.99]"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
+            Começar agora — é grátis
+          </Link>
           <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/8 px-5 transition-colors hover:border-transparent hover:bg-black/4 dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-39.5"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="#como-funciona"
+            className="w-full sm:w-auto rounded-xl border border-zinc-700 px-8 py-3 text-sm font-medium text-zinc-300 transition-all hover:border-zinc-600 hover:text-white"
           >
-            Documentation
+            Como funciona
           </a>
         </div>
-      </main>
-    </div>
-  );
+
+        {/* Social proof mínimo */}
+        <p className="text-xs text-zinc-600">
+          Sem cartão de crédito · Setup em 2 minutos
+        </p>
+      </div>
+
+      {/* Seção como funciona */}
+      <div id="como-funciona" className="mt-32 w-full max-w-3xl mx-auto px-4">
+        <h2 className="text-center text-xl font-semibold text-white mb-12">
+          Como funciona
+        </h2>
+        <div className="grid sm:grid-cols-3 gap-6">
+          {[
+            {
+              step: "01",
+              title: "Configure sua agenda",
+              description:
+                "Defina seus dias e horários disponíveis, tipos de reunião e duração.",
+            },
+            {
+              step: "02",
+              title: "Compartilhe seu link",
+              description:
+                "Envie seu link personalizado para clientes, parceiros ou equipe.",
+            },
+            {
+              step: "03",
+              title: "Reuniões confirmadas",
+              description:
+                "As pessoas escolhem o horário e você recebe a confirmação automática.",
+            },
+          ].map((item) => (
+            <div
+              key={item.step}
+              className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 space-y-3"
+            >
+              <span className="text-xs font-mono font-medium text-violet-400">
+                {item.step}
+              </span>
+              <h3 className="text-sm font-semibold text-white">
+                {item.title}
+              </h3>
+              <p className="text-xs text-zinc-500 leading-relaxed">
+                {item.description}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-12 text-center">
+          <Link
+            href="/login"
+            className="inline-flex rounded-xl bg-violet-600 px-8 py-3 text-sm font-medium text-white transition-all hover:bg-violet-500"
+          >
+            Criar minha conta
+          </Link>
+        </div>
+      </div>
+
+      <footer className="mt-24 pb-8 text-center text-xs text-zinc-700">
+        © {new Date().getFullYear()} People OS · Todos os direitos reservados
+      </footer>
+    </main>
+  )
 }
