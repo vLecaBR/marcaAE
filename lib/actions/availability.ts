@@ -25,7 +25,6 @@ export async function saveAvailabilityAction(
 
   const { scheduleId, timeZone, availabilities } = parsed.data
 
-  // Confirma que o schedule pertence ao usuário
   const schedule = await prisma.schedule.findFirst({
     where: { id: scheduleId, userId: session.user.id },
   })
@@ -34,7 +33,18 @@ export async function saveAvailabilityAction(
     return { success: false, error: "Agenda não encontrada." }
   }
 
-  // Upsert atômico: recria as availabilities do zero
+  // Achatar os intervalos para o createMany
+  const flatAvailabilities = availabilities
+    .filter((d) => d.enabled && d.intervals.length > 0)
+    .flatMap((d) =>
+      d.intervals.map((interval) => ({
+        scheduleId,
+        dayOfWeek: d.dayOfWeek,
+        startTime: interval.startTime,
+        endTime: interval.endTime,
+      }))
+    )
+
   await prisma.$transaction([
     prisma.schedule.update({
       where: { id: scheduleId },
@@ -44,14 +54,7 @@ export async function saveAvailabilityAction(
       where: { scheduleId },
     }),
     prisma.scheduleAvailability.createMany({
-      data: availabilities
-        .filter((d) => d.enabled)
-        .map((d) => ({
-          scheduleId,
-          dayOfWeek: d.dayOfWeek,
-          startTime: d.startTime,
-          endTime: d.endTime,
-        })),
+      data: flatAvailabilities,
     }),
   ])
 

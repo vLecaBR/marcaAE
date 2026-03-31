@@ -2,22 +2,22 @@
 
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { availabilitySchema, type AvailabilityInput } from "@/lib/validators/onboarding"
 import { saveAvailabilityAction } from "@/lib/actions/availability"
 import { cn } from "@/lib/utils"
-import { prisma } from "@/lib/prisma"
+import { Plus, Trash2 } from "lucide-react"
 
 const DAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
 
 const DEFAULT_DAYS: AvailabilityInput["availabilities"] = [
-  { dayOfWeek: 0, enabled: false, startTime: "09:00", endTime: "18:00" },
-  { dayOfWeek: 1, enabled: true,  startTime: "09:00", endTime: "18:00" },
-  { dayOfWeek: 2, enabled: true,  startTime: "09:00", endTime: "18:00" },
-  { dayOfWeek: 3, enabled: true,  startTime: "09:00", endTime: "18:00" },
-  { dayOfWeek: 4, enabled: true,  startTime: "09:00", endTime: "18:00" },
-  { dayOfWeek: 5, enabled: true,  startTime: "09:00", endTime: "18:00" },
-  { dayOfWeek: 6, enabled: false, startTime: "09:00", endTime: "18:00" },
+  { dayOfWeek: 0, enabled: false, intervals: [{ startTime: "09:00", endTime: "18:00" }] },
+  { dayOfWeek: 1, enabled: true,  intervals: [{ startTime: "09:00", endTime: "18:00" }] },
+  { dayOfWeek: 2, enabled: true,  intervals: [{ startTime: "09:00", endTime: "18:00" }] },
+  { dayOfWeek: 3, enabled: true,  intervals: [{ startTime: "09:00", endTime: "18:00" }] },
+  { dayOfWeek: 4, enabled: true,  intervals: [{ startTime: "09:00", endTime: "18:00" }] },
+  { dayOfWeek: 5, enabled: true,  intervals: [{ startTime: "09:00", endTime: "18:00" }] },
+  { dayOfWeek: 6, enabled: false, intervals: [{ startTime: "09:00", endTime: "18:00" }] },
 ]
 
 const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
@@ -43,17 +43,16 @@ export function StepAvailability({
 }: StepAvailabilityProps) {
   const [serverError, setServerError] = useState<string | null>(null)
 
-  // Monta os dias a partir do schedule existente
   const initialDays = DEFAULT_DAYS.map((def) => {
-    const existing = schedule?.availabilities.find(
-      (a) => a.dayOfWeek === def.dayOfWeek
-    )
-    if (existing) {
+    const existing = schedule?.availabilities
+      .filter((a) => a.dayOfWeek === def.dayOfWeek)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime))
+
+    if (existing && existing.length > 0) {
       return {
-        ...def,
+        dayOfWeek: def.dayOfWeek,
         enabled: true,
-        startTime: existing.startTime,
-        endTime: existing.endTime,
+        intervals: existing.map(e => ({ startTime: e.startTime, endTime: e.endTime }))
       }
     }
     return def
@@ -64,6 +63,7 @@ export function StepAvailability({
     handleSubmit,
     control,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<AvailabilityInput>({
     resolver: zodResolver(availabilitySchema),
@@ -74,7 +74,6 @@ export function StepAvailability({
     },
   })
 
-  const { fields } = useFieldArray({ control, name: "availabilities" })
   const watchedDays = watch("availabilities")
 
   async function onSubmit(data: AvailabilityInput) {
@@ -85,6 +84,28 @@ export function StepAvailability({
     } else {
       setServerError(result.error)
     }
+  }
+
+  function addInterval(dayIndex: number) {
+    const currentIntervals = watchedDays[dayIndex].intervals
+    const newStart = "13:00"
+    const newEnd = "18:00"
+    setValue(`availabilities.${dayIndex}.intervals`, [
+      ...currentIntervals,
+      { startTime: newStart, endTime: newEnd }
+    ])
+  }
+
+  function removeInterval(dayIndex: number, intervalIndex: number) {
+    const currentIntervals = watchedDays[dayIndex].intervals
+    if (currentIntervals.length <= 1) {
+      setValue(`availabilities.${dayIndex}.enabled`, false)
+      return
+    }
+    setValue(
+      `availabilities.${dayIndex}.intervals`,
+      currentIntervals.filter((_, i) => i !== intervalIndex)
+    )
   }
 
   return (
@@ -103,77 +124,107 @@ export function StepAvailability({
       )}
 
       {/* Lista de dias */}
-      <div className="space-y-2">
-        {fields.map((field, index) => {
+      <div className="space-y-3">
+        {DEFAULT_DAYS.map((_, index) => {
           const isEnabled = watchedDays[index]?.enabled
+          const intervals = watchedDays[index]?.intervals || []
+          const hasError = errors.availabilities?.[index]?.intervals
 
           return (
             <div
-              key={field.id}
+              key={index}
               className={cn(
-                "flex items-center gap-4 rounded-xl border px-4 py-3 transition-all",
+                "flex flex-col sm:flex-row sm:items-start gap-4 rounded-xl border px-4 py-3 transition-all",
                 isEnabled
                   ? "border-zinc-700 bg-zinc-800/60"
                   : "border-zinc-800 bg-zinc-900/40"
               )}
             >
-              {/* Toggle */}
-              <label className="relative inline-flex cursor-pointer items-center">
-                <input
-                  type="checkbox"
-                  className="sr-only peer"
-                  {...register(`availabilities.${index}.enabled`)}
-                />
-                <div className={cn(
-                  "h-5 w-9 rounded-full border transition-all",
-                  "peer-checked:bg-violet-600 peer-checked:border-violet-600",
-                  "bg-zinc-700 border-zinc-600",
-                  "after:absolute after:top-0.5 after:left-0.5",
-                  "after:h-4 after:w-4 after:rounded-full after:bg-white",
-                  "after:transition-all peer-checked:after:translate-x-4"
-                )} />
-              </label>
-
-              {/* Dia */}
-              <span
-                className={cn(
-                  "w-8 text-sm font-medium",
+              {/* Header do Dia (Toggle + Nome) */}
+              <div className="flex w-full sm:w-28 items-center gap-3 shrink-0 sm:pt-1.5">
+                <label className="relative inline-flex cursor-pointer items-center">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    {...register(`availabilities.${index}.enabled`)}
+                  />
+                  <div className={cn(
+                    "h-5 w-9 rounded-full border transition-all",
+                    "peer-checked:bg-violet-600 peer-checked:border-violet-600",
+                    "bg-zinc-700 border-zinc-600",
+                    "after:absolute after:top-[2px] after:left-[2px]",
+                    "after:h-4 after:w-4 after:rounded-full after:bg-white",
+                    "after:transition-all peer-checked:after:translate-x-full"
+                  )} />
+                </label>
+                <span className={cn(
+                  "text-sm font-medium",
                   isEnabled ? "text-white" : "text-zinc-600"
-                )}
-              >
-                {DAY_LABELS[field.dayOfWeek]}
-              </span>
+                )}>
+                  {DAY_LABELS[index]}
+                </span>
+              </div>
 
-              {/* Horários */}
-              {isEnabled ? (
-                <div className="flex flex-1 items-center gap-2">
-                  <select
-                    {...register(`availabilities.${index}.startTime`)}
-                    className="flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm text-white outline-none focus:border-violet-500 transition-colors"
-                  >
-                    {TIME_OPTIONS.map((t) => (
-                      <option key={t} value={t}>{t}</option>
+              {/* Intervalos */}
+              <div className="flex-1 space-y-3">
+                {isEnabled ? (
+                  <>
+                    {intervals.map((interval, iIndex) => (
+                      <div key={iIndex} className="flex flex-wrap items-center gap-2">
+                        <select
+                          {...register(`availabilities.${index}.intervals.${iIndex}.startTime`)}
+                          className="w-20 sm:w-24 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm text-white outline-none focus:border-violet-500 transition-colors"
+                        >
+                          {TIME_OPTIONS.map((t) => (
+                            <option key={t} value={t}>{t}</option>
+                          ))}
+                        </select>
+                        <span className="text-zinc-500 text-xs">até</span>
+                        <select
+                          {...register(`availabilities.${index}.intervals.${iIndex}.endTime`)}
+                          className="w-20 sm:w-24 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm text-white outline-none focus:border-violet-500 transition-colors"
+                        >
+                          {TIME_OPTIONS.map((t) => (
+                            <option key={t} value={t}>{t}</option>
+                          ))}
+                        </select>
+                        
+                        <button
+                          type="button"
+                          onClick={() => removeInterval(index, iIndex)}
+                          className="ml-1 flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-800 hover:text-white transition-colors"
+                          title="Remover"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     ))}
-                  </select>
-                  <span className="text-zinc-500 text-xs">até</span>
-                  <select
-                    {...register(`availabilities.${index}.endTime`)}
-                    className="flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm text-white outline-none focus:border-violet-500 transition-colors"
-                  >
-                    {TIME_OPTIONS.map((t) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
-                </div>
-              ) : (
-                <span className="flex-1 text-sm text-zinc-600">Indisponível</span>
-              )}
+                    
+                    <button
+                      type="button"
+                      onClick={() => addInterval(index)}
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-violet-400 hover:text-violet-300 transition-colors mt-2"
+                    >
+                      <Plus className="h-3 w-3" />
+                      Adicionar intervalo
+                    </button>
+
+                    {hasError && (
+                      <p className="text-xs text-rose-400 mt-2">
+                        {hasError.message || "Intervalo inválido."}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-sm text-zinc-600 sm:pt-1 block">Indisponível</span>
+                )}
+              </div>
             </div>
           )
         })}
       </div>
 
-      {errors.availabilities && (
+      {errors.availabilities && !Array.isArray(errors.availabilities) && (
         <p className="text-xs text-rose-400">
           {typeof errors.availabilities.message === "string"
             ? errors.availabilities.message

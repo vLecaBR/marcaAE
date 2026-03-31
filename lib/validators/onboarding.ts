@@ -20,22 +20,29 @@ export const profileSchema = z.object({
 export const availabilitySchema = z.object({
   scheduleId: z.string().cuid(),
   timeZone: z.string().min(1, "Selecione um fuso horário."),
-  availabilities: z
-    .array(
-      z.object({
-        dayOfWeek: z.number().min(0).max(6),
-        enabled: z.boolean(),
-        startTime: z.string().regex(/^\d{2}:\d{2}$/, "Formato inválido."),
-        endTime: z.string().regex(/^\d{2}:\d{2}$/, "Formato inválido."),
-      })
-    )
-    .refine(
-      (days) =>
-        days.every(
-          (d) => !d.enabled || d.startTime < d.endTime
-        ),
-      { message: "Horário de início deve ser antes do horário de fim." }
-    ),
+  availabilities: z.array(
+    z.object({
+      dayOfWeek: z.number().min(0).max(6),
+      enabled: z.boolean(),
+      intervals: z.array(
+        z.object({
+          startTime: z.string().regex(/^\d{2}:\d{2}$/, "Formato inválido."),
+          endTime: z.string().regex(/^\d{2}:\d{2}$/, "Formato inválido."),
+        })
+      ).refine(
+        (intervals) => {
+          // Checar se fim > início
+          if (!intervals.every(i => i.startTime < i.endTime)) return false;
+          // Se tiver mais de 1 intervalo, garantir que não se sobrepõem e estão ordenados
+          for (let i = 1; i < intervals.length; i++) {
+            if (intervals[i].startTime <= intervals[i - 1].endTime) return false;
+          }
+          return true;
+        },
+        { message: "Intervalos inválidos ou sobrepostos." }
+      )
+    })
+  )
 })
 
 export type ProfileInput = z.infer<typeof profileSchema>
