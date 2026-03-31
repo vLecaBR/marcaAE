@@ -7,6 +7,7 @@ import {
   sendBookingConfirmedEmail,
   sendBookingPendingEmail,
   sendOwnerNotifyEmail,
+  sendBookingCancelledEmail,
 } from "@/lib/email/send"
 import type { BookingEmailData } from "@/lib/email/templates"
 
@@ -250,5 +251,70 @@ class ConflictError extends Error {
   constructor(message: string) {
     super(message)
     this.name = "ConflictError"
+  }
+}
+
+export async function cancelBooking(
+  uid: string,
+  reason: string,
+  canceledBy: "OWNER" | "GUEST"
+): Promise<{ status: "success" | "not_found" | "forbidden" | "internal"; message?: string }> {
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { uid },
+      include: {
+        eventType: {
+          select: {
+            title: true,
+            locationType: true,
+            locationValue: true,
+            user: { select: { name: true, email: true, timeZone: true } },
+          },
+        },
+      },
+    })
+
+    if (!booking) {
+      return { status: "not_found", message: "Agendamento não encontrado." }
+    }
+
+    if (booking.status === "CANCELLED") {
+      return { status: "forbidden", message: "Agendamento já está cancelado." }
+    }
+
+    const updated = await prisma.booking.update({
+      where: { uid },
+      data: {
+        status: "CANCELLED",
+        cancelReason: reason,
+        canceledAt: new Date(),
+        canceledBy,
+      },
+    })
+
+    const emailData: BookingEmailData = {
+      uid: booking.uid,
+      guestName: booking.guestName,
+      guestEmail: booking.guestEmail,
+      ownerName: booking.eventType.user.name ?? "Organizador",
+      ownerEmail: booking.eventType.user.email,
+      eventTitle: booking.eventType.title,
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+      guestTimeZone: booking.guestTimeZone,
+      ownerTimeZone: booking.eventType.user.timeZone,
+      locationType: booking.eventType.locationType,
+      meetingUrl: booking.eventType.locationValue ?? null,
+      requiresConfirm: false, // Not used in cancel template
+    }
+
+    void sendBookingCancelledEmail(emailData, reason, canceledBy === "GUEST").catch(err => {
+      console.error("[sendBookingCancelledEmail]", err)
+    })
+
+    return { status: "success" }
+  } catch (err) {
+    console.error("[cancelBooking]", err)
+    return { status: "internal", message: "Erro ao cancelar." }
   }
 }
