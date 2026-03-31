@@ -266,6 +266,9 @@ model Booking {
   meetingUrl  String?
   meetingId   String?
 
+  // Controle de lembretes
+  reminderSent Boolean @default(false)
+
   // Respostas às perguntas do EventType
   responses   BookingResponse[]
 

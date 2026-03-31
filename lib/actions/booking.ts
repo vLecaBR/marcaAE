@@ -9,6 +9,12 @@ import {
   sendOwnerNotifyEmail,
   sendBookingCancelledEmail,
 } from "@/lib/email/send"
+import {
+  sendWhatsAppConfirmation,
+  sendWhatsAppPending,
+  sendWhatsAppCancellation,
+} from "@/lib/whatsapp/send"
+import { APP_URL } from "@/lib/email/resend"
 import type { BookingEmailData } from "@/lib/email/templates"
 
 // ─── Tipos de retorno ─────────────────────────────────────────────────────────
@@ -196,8 +202,17 @@ export async function createBooking(
         ownerTimeZone: ownerData.timeZone,
         locationType: eventType.locationType,
         meetingUrl: eventType.locationValue ?? null,
-
         requiresConfirm: booking.eventType.requiresConfirm,
+      }
+
+      const whatsappData = {
+        phone: input.guestPhone ?? "",
+        guestName: booking.guestName,
+        eventTitle: booking.eventType.title,
+        ownerName: booking.eventType.user.name ?? "Organizador",
+        startTime: booking.startTime,
+        appUrl: APP_URL,
+        uid: booking.uid,
       }
 
       void Promise.all([
@@ -206,6 +221,12 @@ export async function createBooking(
           : sendBookingConfirmedEmail(emailData),
         sendOwnerNotifyEmail(emailData),
       ]).catch((err) => console.error("[email dispatch]", err))
+
+      if (whatsappData.phone) {
+        void (booking.eventType.requiresConfirm
+          ? sendWhatsAppPending(whatsappData)
+          : sendWhatsAppConfirmation(whatsappData)).catch(err => console.error("[whatsapp dispatch]", err))
+      }
     }
 
     // ── RETURN NORMAL ─────────────────────────
@@ -308,9 +329,23 @@ export async function cancelBooking(
       requiresConfirm: false, // Not used in cancel template
     }
 
+    const whatsappData = {
+      phone: booking.guestPhone ?? "",
+      guestName: booking.guestName,
+      eventTitle: booking.eventType.title,
+      ownerName: booking.eventType.user.name ?? "Organizador",
+      startTime: booking.startTime,
+      appUrl: APP_URL,
+      uid: booking.uid,
+    }
+
     void sendBookingCancelledEmail(emailData, reason, canceledBy === "GUEST").catch(err => {
       console.error("[sendBookingCancelledEmail]", err)
     })
+
+    if (whatsappData.phone) {
+      void sendWhatsAppCancellation(whatsappData, reason).catch(err => console.error("[whatsapp dispatch]", err))
+    }
 
     return { status: "success" }
   } catch (err) {
