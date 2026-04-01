@@ -6,14 +6,19 @@ MarcaAí é uma plataforma SaaS moderna de agendamentos online projetada especia
 
 *   **Páginas Públicas Premium:** Uma vitrine estilo "Link in bio" (ex: `marcaai.com/barbearia-do-ze`) com design escuro, moderno, contendo todos os serviços disponíveis.
 *   **Múltiplos Serviços:** O profissional pode oferecer "Corte de Cabelo", "Barba", ou "Consulta de 1h", com durações e locais diferentes (Presencial, Google Meet, Zoom, Telefone).
+*   **Integração com Google Calendar:** Sincronização bidirecional e prevenção de conflitos verificando a agenda real (FreeBusy API) do Google.
+*   **Links de Reunião Automáticos:** Geração automática de links do Google Meet quando o serviço configurado for para encontros online e a reunião for confirmada.
 *   **Gestão de Disponibilidade Avançada:**
     *   **Múltiplos Intervalos:** Suporte nativo para pausas para o almoço (ex: Seg a Sex das 09h às 12h e 13h às 18h).
     *   **Férias e Feriados:** Bloqueio de datas específicas no calendário (Schedule Exceptions).
-*   **Fluxo de Aprovação:** Serviços podem ser de aprovação automática (corte de cabelo) ou exigirem confirmação manual pelo painel (mentorias/consultas).
+*   **Perguntas Customizadas (Onboarding):** Crie formulários flexíveis (texto, textarea, telefone, etc.) para os clientes responderem ao realizarem um agendamento.
+*   **Fluxo de Aprovação:** Serviços podem ser de aprovação automática (corte de cabelo) ou exigirem confirmação manual pelo painel (mentorias/consultas). Cancelamentos e reagendamentos podem ser feitos através do Dashboard e sincronizados.
+*   **Cobrança Antecipada (Mercado Pago):** Geração dinâmica de Pix "Copia e Cola" e QR Code via Mercado Pago, para cobrar sinais/pagamentos antecipados, liberando a vaga somente após confirmação via webhook.
 *   **Notificações Multicanal:**
     *   📧 E-mails transacionais (Resend) para convidados e profissionais.
-    *   💬 *Integração preparada para WhatsApp* com disparos e lembretes automáticos para reduzir o *no-show* (faltas).
-*   **Anti Double-Booking:** Sistema transacional de banco de dados (`FOR UPDATE SKIP LOCKED`) para impedir sobreposições de horários de forma segura.
+    *   💬 Lembretes e notificações automáticas de WhatsApp (via Evolution API) para reduzir o *no-show*.
+*   **Equipes / Multi-Profissionais:** Capacidade de criar "Equipes" (ex. Clínicas) e adicionar múltiplos membros com permissões de Owner, Admin ou Member.
+*   **Anti Double-Booking:** Sistema transacional de banco de dados (`FOR UPDATE SKIP LOCKED`) para impedir sobreposições de horários de forma segura, acoplado a verificações do Google Calendar.
 
 ## 🛠 Tecnologias Utilizadas
 
@@ -24,6 +29,7 @@ MarcaAí é uma plataforma SaaS moderna de agendamentos online projetada especia
 *   **ORM:** [Prisma](https://www.prisma.io/)
 *   **Autenticação:** [NextAuth.js v5 (Auth.js)](https://authjs.dev/) - Suporte a Google OAuth e Magic Links.
 *   **E-mails:** [Resend](https://resend.com/) + React Email
+*   **Pagamentos:** [Mercado Pago SDK](https://www.mercadopago.com.br/developers/) (QR Code Pix & Webhooks)
 *   **Validação:** Zod + React Hook Form
 
 ## 💻 Como Rodar o Projeto (Desenvolvimento)
@@ -33,7 +39,7 @@ MarcaAí é uma plataforma SaaS moderna de agendamentos online projetada especia
    ```bash
    npm install
    ```
-3. Crie um arquivo `.env` baseado no seu ambiente (você precisará configurar chaves do Google OAuth, Neon PostgreSQL e Resend). Exemplo de `.env`:
+3. Crie um arquivo `.env` baseado no seu ambiente (você precisará configurar chaves do Google OAuth, Neon PostgreSQL, Resend e Mercado Pago). Exemplo de `.env`:
    ```env
    DATABASE_URL="postgresql://user:pass@host/db?sslmode=require"
    AUTH_SECRET="seu_segredo_super_forte_aqui"
@@ -43,6 +49,9 @@ MarcaAí é uma plataforma SaaS moderna de agendamentos online projetada especia
    RESEND_API_KEY="re_..."
    RESEND_FROM_EMAIL="People OS <noreply@seudominio.com>"
    NEXT_PUBLIC_APP_URL="http://localhost:3000"
+   MERCADOPAGO_ACCESS_TOKEN="APP_USR-..."
+   WHATSAPP_API_URL="http://seu-servidor-evolution-api.com"
+   WHATSAPP_API_KEY="sua_chave_de_api"
    ```
 4. Sincronize o banco de dados:
    ```bash
@@ -55,7 +64,7 @@ MarcaAí é uma plataforma SaaS moderna de agendamentos online projetada especia
    ```
 6. Acesse `http://localhost:3000`.
 
-## 📦 Cron Jobs e Lembretes
+## 📦 Cron Jobs e Lembretes (WhatsApp/E-mail)
 
 Para o sistema de lembretes automáticos de WhatsApp rodar, existe uma rota configurada em `/api/cron/reminders`. Na Vercel, isso é configurado criando o arquivo `vercel.json`:
 
@@ -69,7 +78,7 @@ Para o sistema de lembretes automáticos de WhatsApp rodar, existe uma rota conf
   ]
 }
 ```
-*(No exemplo acima, ele varre a agenda a cada hora para disparar os lembretes do dia).*
+*(No exemplo acima, ele varre a agenda a cada hora para disparar os lembretes do dia, buscando agendamentos que ocorrem nas próximas 2 horas).*
 
 ---
 *Desenvolvido com foco em alta conversão e estabilidade.*

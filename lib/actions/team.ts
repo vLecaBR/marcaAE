@@ -126,8 +126,8 @@ export async function inviteTeamMemberAction(
     })
     revalidatePath(`/dashboard/teams/${teamId}`)
     return { success: true, data: undefined }
-  } catch (err: any) {
-    if (err?.code === "P2002") {
+  } catch (err: unknown) {
+    if (typeof err === "object" && err !== null && "code" in err && (err as { code: string }).code === "P2002") {
       return { success: false, error: "Este usuário já está na equipe." }
     }
     return { success: false, error: "Erro ao adicionar membro." }

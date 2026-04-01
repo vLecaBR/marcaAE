@@ -34,11 +34,12 @@ async jwt({ token, user }) {
 
     async session({ session, token }) {
       if (session.user) {
+        const customToken = token as { username?: string, onboarded?: boolean, timeZone?: string }
         session.user.id = token.id as string
-        session.user.username = (token as any).username ?? null
-        session.user.onboarded = (token as any).onboarded ?? false
+        session.user.username = customToken.username ?? null
+        session.user.onboarded = customToken.onboarded ?? false
         session.user.timeZone =
-          (token as any).timeZone ?? "America/Sao_Paulo"
+          customToken.timeZone ?? "America/Sao_Paulo"
       }
       return session
     },
