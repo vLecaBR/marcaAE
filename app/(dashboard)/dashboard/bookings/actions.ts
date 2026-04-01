@@ -4,6 +4,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { cancelBooking } from "@/lib/actions/booking"
+import { createGoogleCalendarEvent } from "@/lib/google/calendar"
 import { sendBookingConfirmedEmail } from "@/lib/email/send"
 import { sendWhatsAppConfirmation } from "@/lib/whatsapp/send"
 import { APP_URL } from "@/lib/email/resend"
@@ -30,9 +31,35 @@ export async function approveBookingAction(uid: string) {
     return { success: false, error: "Agendamento não encontrado ou sem permissão" }
   }
 
+  let finalMeetingUrl = booking.eventType.locationValue ?? null
+  let finalMeetingId = null
+
+  // Generate Google Calendar event & Meet link since it's now confirmed
+  const eventResponse = await createGoogleCalendarEvent({
+    userId: session.user.id,
+    title: `${booking.eventType.title} com ${booking.guestName}`,
+    description: `Agendamento via MarcaAí\n\nConvidado: ${booking.guestName} (${booking.guestEmail})\nNotas: ${booking.guestNotes ?? "Nenhuma"}`,
+    startTime: booking.startTime,
+    endTime: booking.endTime,
+    guestName: booking.guestName,
+    guestEmail: booking.guestEmail,
+    createMeetLink: booking.eventType.locationType === "GOOGLE_MEET",
+  })
+
+  if (eventResponse) {
+    finalMeetingId = eventResponse.eventId
+    if (eventResponse.meetLink) {
+      finalMeetingUrl = eventResponse.meetLink
+    }
+  }
+
   await prisma.booking.update({
     where: { uid },
-    data: { status: "CONFIRMED" },
+    data: { 
+      status: "CONFIRMED",
+      meetingId: finalMeetingId,
+      meetingUrl: finalMeetingUrl,
+    },
   })
 
   // Emails and WhatsApp
@@ -48,7 +75,7 @@ export async function approveBookingAction(uid: string) {
     guestTimeZone: booking.guestTimeZone,
     ownerTimeZone: booking.eventType.user.timeZone,
     locationType: booking.eventType.locationType,
-    meetingUrl: booking.eventType.locationValue ?? null,
+    meetingUrl: finalMeetingUrl,
     requiresConfirm: false,
   }
 

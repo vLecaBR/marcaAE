@@ -115,3 +115,100 @@ export async function getGoogleCalendarBusySlots(
     return []
   }
 }
+
+interface CreateGoogleEventInput {
+  userId: string
+  title: string
+  description: string
+  startTime: Date
+  endTime: Date
+  guestName: string
+  guestEmail: string
+  createMeetLink?: boolean
+}
+
+/**
+ * Creates an event in the user's Google Calendar and optionally generates a Meet link.
+ */
+export async function createGoogleCalendarEvent(
+  input: CreateGoogleEventInput
+): Promise<{ eventId: string; meetLink?: string } | null> {
+  const accessToken = await getValidAccessToken(input.userId)
+
+  if (!accessToken) return null
+
+  const eventBody: any = {
+    summary: input.title,
+    description: input.description,
+    start: {
+      dateTime: input.startTime.toISOString(),
+    },
+    end: {
+      dateTime: input.endTime.toISOString(),
+    },
+    attendees: [
+      { email: input.guestEmail, displayName: input.guestName }
+    ],
+  }
+
+  // Request a Google Meet link if required
+  if (input.createMeetLink) {
+    eventBody.conferenceData = {
+      createRequest: {
+        requestId: `meet_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
+        conferenceSolutionKey: { type: "hangoutsMeet" },
+      },
+    }
+  }
+
+  try {
+    const response = await fetch(`${GOOGLE_CALENDAR_API_URL}/calendars/primary/events?conferenceDataVersion=1`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(eventBody),
+    })
+
+    if (!response.ok) {
+      console.error("[Google Calendar] Error creating event", await response.text())
+      return null
+    }
+
+    const data = await response.json()
+    const meetLink = data.conferenceData?.entryPoints?.find(
+      (ep: any) => ep.entryPointType === "video"
+    )?.uri
+
+    return {
+      eventId: data.id,
+      meetLink,
+    }
+  } catch (err) {
+    console.error("[Google Calendar] Failed to create event", err)
+    return null
+  }
+}
+
+/**
+ * Cancels (deletes) an event from the user's Google Calendar.
+ */
+export async function deleteGoogleCalendarEvent(userId: string, eventId: string): Promise<boolean> {
+  const accessToken = await getValidAccessToken(userId)
+  if (!accessToken) return false
+
+  try {
+    const response = await fetch(`${GOOGLE_CALENDAR_API_URL}/calendars/primary/events/${eventId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    })
+
+    return response.ok || response.status === 404 // 404 means it's already gone
+  } catch (err) {
+    console.error("[Google Calendar] Failed to delete event", err)
+    return false
+  }
+}

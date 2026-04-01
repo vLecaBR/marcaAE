@@ -158,15 +158,19 @@ export async function createBooking(
             status: eventType.requiresConfirm ? "PENDING" : "CONFIRMED",
           },
           select: {
+            id: true,
             uid: true,
             startTime: true,
             endTime: true,
             guestName: true,
             guestEmail: true,
+            status: true,
             eventType: {
               select: {
                 title: true,
                 requiresConfirm: true,
+                locationType: true,
+                locationValue: true,
                 user: { select: { name: true } },
               },
             },
@@ -188,6 +192,38 @@ export async function createBooking(
       select: { email: true, timeZone: true },
     })
 
+    let finalMeetingUrl = eventType.locationValue ?? null
+    let finalMeetingId = null
+
+    if (booking.status === "CONFIRMED") {
+      const { createGoogleCalendarEvent } = await import("@/lib/google/calendar")
+      const eventResponse = await createGoogleCalendarEvent({
+        userId: input.ownerId,
+        title: `${booking.eventType.title} com ${booking.guestName}`,
+        description: `Agendamento via MarcaAí\n\nConvidado: ${booking.guestName} (${booking.guestEmail})\nNotas: ${input.guestNotes ?? "Nenhuma"}`,
+        startTime: startUtc,
+        endTime: endUtc,
+        guestName: booking.guestName,
+        guestEmail: booking.guestEmail,
+        createMeetLink: eventType.locationType === "GOOGLE_MEET",
+      })
+
+      if (eventResponse) {
+        finalMeetingId = eventResponse.eventId
+        if (eventResponse.meetLink) {
+          finalMeetingUrl = eventResponse.meetLink
+        }
+
+        await prisma.booking.update({
+          where: { id: booking.id },
+          data: {
+            meetingId: finalMeetingId,
+            meetingUrl: finalMeetingUrl,
+          },
+        })
+      }
+    }
+
     if (ownerData) {
       const emailData: BookingEmailData = {
         uid: booking.uid,
@@ -201,7 +237,7 @@ export async function createBooking(
         guestTimeZone: input.guestTimeZone,
         ownerTimeZone: ownerData.timeZone,
         locationType: eventType.locationType,
-        meetingUrl: eventType.locationValue ?? null,
+        meetingUrl: finalMeetingUrl,
         requiresConfirm: booking.eventType.requiresConfirm,
       }
 
