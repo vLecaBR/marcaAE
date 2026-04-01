@@ -30,6 +30,11 @@ export type BookingSuccess = {
     eventTitle: string
     ownerName: string 
     requiresConfirm: boolean
+    pixData?: {
+      qrCodeBase64?: string
+      qrCode?: string
+      ticketUrl?: string
+    } | null
   }
 }
 
@@ -195,6 +200,31 @@ export async function createBooking(
       }
     )
 
+    // ── PAGAMENTO PIX (SE APLICÁVEL) ─────────────────────────
+
+    let pixData = null
+    if (eventType.price && eventType.price > 0) {
+      const { createPixPayment } = await import("@/lib/payments/mercadopago")
+      const paymentResult = await createPixPayment({
+        transactionAmount: eventType.price / 100,
+        description: `Agendamento: ${eventType.title}`,
+        payerEmail: input.guestEmail,
+        payerFirstName: input.guestName.split(" ")[0],
+        externalReference: booking.uid,
+      })
+
+      if (paymentResult) {
+        await prisma.booking.update({
+          where: { id: booking.id },
+          data: {
+            paymentReference: paymentResult.id,
+            paymentStatus: "UNPAID",
+          }
+        })
+        pixData = paymentResult
+      }
+    }
+
     // ── EMAILS (NÃO BLOQUEANTE) ─────────────────────────
 
     const ownerData = await prisma.user.findUnique({
@@ -295,6 +325,7 @@ export async function createBooking(
         eventTitle: booking.eventType.title,
         ownerName: booking.eventType.user.name ?? "Organizador",
         requiresConfirm: booking.eventType.requiresConfirm,
+        pixData,
       },
     }
   } catch (err) {

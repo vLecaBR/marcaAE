@@ -33,7 +33,7 @@ interface BookingFormProps {
 }
 
 type BookingResult =
-  | { status: "success"; requiresConfirm: boolean }
+  | { status: "success"; requiresConfirm: boolean; pixData?: any }
   | { status: "conflict" }
   | { status: "error"; message: string }
 
@@ -97,6 +97,55 @@ export function BookingForm({
 
   // Tela de sucesso
   if (result?.status === "success") {
+    if (result.pixData) {
+      return (
+        <div className="flex flex-col items-center justify-center px-8 py-12 text-center">
+          <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-violet-500/10">
+            <svg className="h-7 w-7 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-semibold text-white">Pagamento via Pix</h2>
+          <p className="mt-2 text-sm text-zinc-400 max-w-sm">
+            Escaneie o QR Code abaixo no app do seu banco para confirmar o agendamento.
+          </p>
+
+          <div className="mt-6 rounded-2xl bg-white p-4">
+            <img 
+              src={`data:image/png;base64,${result.pixData.qrCodeBase64}`} 
+              alt="QR Code Pix" 
+              className="w-48 h-48"
+            />
+          </div>
+
+          <div className="mt-6 w-full max-w-sm space-y-2 text-left">
+            <p className="text-xs font-medium text-zinc-400">Pix Copia e Cola:</p>
+            <div className="relative">
+              <input
+                readOnly
+                value={result.pixData.qrCode}
+                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3 pr-12 text-xs text-zinc-300 outline-none"
+              />
+              <button 
+                onClick={() => navigator.clipboard.writeText(result.pixData.qrCode)}
+                className="absolute right-2 top-2 rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors"
+                title="Copiar"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </button>
+            </div>
+            {result.requiresConfirm && (
+              <p className="text-xs text-amber-400 mt-4 text-center">
+                Após o pagamento, o agendamento irá para aprovação manual.
+              </p>
+            )}
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="flex flex-col items-center justify-center px-8 py-16 text-center">
         <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10">
