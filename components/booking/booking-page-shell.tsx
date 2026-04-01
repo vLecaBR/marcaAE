@@ -27,6 +27,7 @@ interface Props {
   eventType: {
     id: string; title: string; description: string | null
     duration: number; color: string; locationType: string
+    price: number | null; questions?: any[]
     requiresConfirm: boolean; beforeEventBuffer: number
     afterEventBuffer: number; bookingLimitDays: number | null
   }
