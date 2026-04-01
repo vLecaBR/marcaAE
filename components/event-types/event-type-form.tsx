@@ -76,6 +76,7 @@ export function EventTypeForm({ open, onClose, defaultValues }: EventTypeFormPro
       bookingLimitDays: 60,
       locationType: "GOOGLE_MEET",
       locationValue: "",
+      price: null,
       ...defaultValues,
     },
   })
@@ -291,6 +292,30 @@ export function EventTypeForm({ open, onClose, defaultValues }: EventTypeFormPro
               />
             </Field>
           </div>
+
+          {/* Preço */}
+          <Field label="Preço (Opcional)" error={errors.price?.message}>
+            <div className="relative">
+              <span className="absolute left-3 top-2.5 text-sm text-zinc-500">R$</span>
+              <input
+                {...register("price", {
+                  setValueAs: (v) => {
+                    if (v === "" || v === null || isNaN(v)) return null;
+                    return parseFloat(v) * 100; // Salva em centavos
+                  }
+                })}
+                defaultValue={defaultValues?.price ? (defaultValues.price / 100).toFixed(2) : ""}
+                type="number"
+                step="0.01"
+                min={0}
+                placeholder="0.00"
+                className={cn(inputClass, "pl-9")}
+              />
+            </div>
+            <p className="mt-1 text-xs text-zinc-600">
+              Deixe em branco para serviços gratuitos.
+            </p>
+          </Field>
 
           {/* Limite de dias */}
           <Field label="Agendamentos até (dias)" error={errors.bookingLimitDays?.message}>

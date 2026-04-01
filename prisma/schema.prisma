@@ -123,6 +123,10 @@ model EventType {
   // Perguntas adicionais no formulário público
   questions       EventTypeQuestion[]
 
+  // Monetização
+  price           Int?     // Preço em centavos
+  currency        String   @default("BRL")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -272,6 +276,10 @@ model Booking {
   // Respostas às perguntas do EventType
   responses   BookingResponse[]
 
+  // Pagamentos (Sinal / Integral)
+  paymentStatus    PaymentStatus @default(UNPAID)
+  paymentReference String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -294,6 +302,12 @@ enum BookingStatus {
   CANCELLED  // cancelado
   RESCHEDULED
   NO_SHOW
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
 }
 
 enum CanceledBy {

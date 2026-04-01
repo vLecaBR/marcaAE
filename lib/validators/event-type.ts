@@ -35,6 +35,7 @@ export const eventTypeSchema = z.object({
     "GOOGLE_MEET","ZOOM","TEAMS","PHONE","IN_PERSON","CUSTOM",
   ]),
   locationValue: z.string().max(255).optional().nullable(),
+  price: z.number().min(0, "Preço inválido").optional().nullable(),
 })
 
 export type EventTypeInput = z.infer<typeof eventTypeSchema>

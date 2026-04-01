@@ -32,6 +32,7 @@ export async function getEventTypesAction() {
       bookingLimitDays: true,
       locationType: true,
       locationValue: true,
+      price: true,
       _count: { select: { bookings: true } },
     },
   })

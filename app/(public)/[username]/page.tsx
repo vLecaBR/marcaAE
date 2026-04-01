@@ -51,6 +51,7 @@ export default async function UserPublicPage({ params }: Props) {
           id: true, title: true, slug: true,
           description: true, duration: true,
           color: true, locationType: true,
+          price: true,
         },
       },
     },
@@ -149,6 +150,13 @@ export default async function UserPublicPage({ params }: Props) {
                       <LocIcon className="h-3.5 w-3.5" />
                       <span>{locLabel}</span>
                     </div>
+                    {et.price && (
+                      <div className="flex items-center gap-1.5 bg-violet-500/10 text-violet-400 px-2.5 py-1 rounded-md ml-auto">
+                        <span>
+                          {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(et.price / 100)}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Seta de hover */}
