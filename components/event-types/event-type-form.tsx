@@ -36,6 +36,7 @@ interface EventTypeFormProps {
   open: boolean
   onClose: () => void
   defaultValues?: Partial<EventTypeInput> & { id?: string }
+  userTeams?: { id: string, name: string }[]
 }
 
 function slugify(value: string): string {
@@ -49,7 +50,7 @@ function slugify(value: string): string {
     .trim()
 }
 
-export function EventTypeForm({ open, onClose, defaultValues }: EventTypeFormProps) {
+export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: EventTypeFormProps) {
   const router = useRouter()
   const [serverError, setServerError] = useState<string | null>(null)
   const isEditing = !!defaultValues?.id
@@ -349,6 +350,23 @@ export function EventTypeForm({ open, onClose, defaultValues }: EventTypeFormPro
               onChange={(v) => setValue("requiresConfirm", v)}
             />
           </div>
+
+          {userTeams && userTeams.length > 0 && (
+            <Field label="Equipe" error={errors.teamId?.message}>
+              <select
+                {...register("teamId")}
+                className={cn(inputClass, "appearance-none")}
+              >
+                <option value="">Pessoal (Apenas minha agenda)</option>
+                {userTeams.map(team => (
+                  <option key={team.id} value={team.id}>{team.name}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-zinc-600">
+                Se selecionado, este evento será exibido na página da equipe.
+              </p>
+            </Field>
+          )}
 
           {/* Perguntas Customizadas */}
           <div className="space-y-4 pt-4 border-t border-zinc-800">

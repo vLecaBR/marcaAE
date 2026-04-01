@@ -43,6 +43,7 @@ export const eventTypeSchema = z.object({
   ]),
   locationValue: z.string().max(255).optional().nullable(),
   price: z.number().min(0, "Preço inválido").optional().nullable(),
+  teamId: z.string().cuid().optional().nullable(),
 
   questions: z.array(eventTypeQuestionSchema).optional().default([]),
 })

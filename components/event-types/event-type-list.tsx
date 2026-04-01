@@ -21,15 +21,17 @@ type EventType = {
   locationValue: string | null
   price?: number | null
   questions?: any[]
+  teamId?: string | null
   _count: { bookings: number }
 }
 
 interface EventTypeListProps {
   eventTypes: EventType[]
   username: string
+  teams?: { id: string, name: string }[]
 }
 
-export function EventTypeList({ eventTypes, username }: EventTypeListProps) {
+export function EventTypeList({ eventTypes, username, teams = [] }: EventTypeListProps) {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editing, setEditing] = useState<EventType | null>(null)
 
@@ -73,6 +75,7 @@ export function EventTypeList({ eventTypes, username }: EventTypeListProps) {
         open={isFormOpen}
         onClose={handleClose}
         defaultValues={editing ?? undefined}
+        userTeams={teams}
       />
     </>
   )

@@ -28,6 +28,7 @@ export default async function EventTypesPage() {
       locationType: true,
       locationValue: true,
       price: true,
+      teamId: true,
       questions: {
         orderBy: { order: "asc" }
       },
@@ -40,6 +41,11 @@ export default async function EventTypesPage() {
     select: { username: true },
   })
 
+  const teams = await prisma.team.findMany({
+    where: { members: { some: { userId: session.user.id } } },
+    select: { id: true, name: true }
+  })
+
   return (
     <div className="space-y-8">
       <div>
@@ -49,8 +55,9 @@ export default async function EventTypesPage() {
         </p>
       </div>
       <EventTypeList
-        eventTypes={eventTypes}
+        eventTypes={eventTypes as any}
         username={user?.username ?? ""}
+        teams={teams}
       />
     </div>
   )
