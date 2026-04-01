@@ -26,40 +26,55 @@ export default auth((req) => {
   const isOnboarding = pathname === ONBOARDING_ROUTE
   const isAuthenticated = !!session?.user
 
-  // Usuário logado tentando acessar rota pública
+  // Usuário logado tentando acessar rota pública root ou login
   if (isPublicRoute && isAuthenticated) {
-    if (!session.user.onboarded) {
-      return NextResponse.redirect(new URL(ONBOARDING_ROUTE, nextUrl))
+    if (!session?.user?.onboarded) {
+      if (!isOnboarding) {
+         return NextResponse.redirect(new URL(ONBOARDING_ROUTE, nextUrl))
+      }
+      return NextResponse.next()
     }
-    return NextResponse.redirect(
-      new URL(DEFAULT_AUTHENTICATED_ROUTE, nextUrl)
-    )
+    return NextResponse.redirect(new URL(DEFAULT_AUTHENTICATED_ROUTE, nextUrl))
   }
 
-  // Rotas públicas liberadas
+  // Rotas públicas explícitas ou prefixos liberados (como API de pagamentos e booking page)
   if (isPublicRoute || isPublicPrefix) {
     return NextResponse.next()
   }
 
-  // Não autenticado → login
-  if (!isAuthenticated) {
+  // Identificação de rotas restritas
+  const isDashboardRoute = pathname.startsWith("/dashboard")
+  const isSettingsRoute = pathname.startsWith("/settings")
+  const isRestrictedRoute = isDashboardRoute || isSettingsRoute
+
+  // Se não estiver logado, proíbe rotas restritas ou onboarding imediatamente
+  if (!isAuthenticated && (isRestrictedRoute || isOnboarding)) {
     const loginUrl = new URL("/login", nextUrl)
     loginUrl.searchParams.set("callbackUrl", pathname)
     return NextResponse.redirect(loginUrl)
   }
 
-  // Usuário autenticado mas não onboarded
-  if (!session.user.onboarded && !isOnboarding) {
-    return NextResponse.redirect(new URL(ONBOARDING_ROUTE, nextUrl))
+  // Se estiver logado E onboarded, NÃO PODE acessar onboarding (vai pro dashboard)
+  if (isAuthenticated && session?.user?.onboarded && isOnboarding) {
+    return NextResponse.redirect(new URL(DEFAULT_AUTHENTICATED_ROUTE, nextUrl))
   }
 
-  // Usuário onboarded tentando acessar onboarding
-  if (session.user.onboarded && isOnboarding) {
-    return NextResponse.redirect(
-      new URL(DEFAULT_AUTHENTICATED_ROUTE, nextUrl)
-    )
+  // Rotas restritas requerem login, se chegou aqui sem login é redirecionado
+  // Já foi tratado acima: if (!isAuthenticated && (isRestrictedRoute || isOnboarding)) 
+
+  // Se logado e não onboarded -> Só permite onboarding ou actions. 
+  // O bug do chrome-error://chromewebdata acontece por loops em páginas publicas
+  if (isAuthenticated && !session?.user?.onboarded) {
+    if (isRestrictedRoute) {
+      return NextResponse.redirect(new URL(ONBOARDING_ROUTE, nextUrl))
+    }
+    if (!isOnboarding && req.method === "GET") {
+      return NextResponse.redirect(new URL(ONBOARDING_ROUTE, nextUrl))
+    }
+    return NextResponse.next()
   }
 
+  // Permite todo o resto
   return NextResponse.next()
 })
 
