@@ -160,6 +160,8 @@ export async function createBooking(
           select: {
             id: true,
             uid: true,
+            userId: true,
+            meetingId: true,
             startTime: true,
             endTime: true,
             guestName: true,
@@ -225,7 +227,14 @@ export async function createBooking(
     }
 
     if (ownerData) {
-      const emailData: BookingEmailData = {
+    if (booking.meetingId) {
+      const { deleteGoogleCalendarEvent } = await import("@/lib/google/calendar")
+      void deleteGoogleCalendarEvent(booking.userId, booking.meetingId).catch(err => {
+        console.error("[deleteGoogleCalendarEvent]", err)
+      })
+    }
+
+    const emailData: BookingEmailData = {
         uid: booking.uid,
         guestName: booking.guestName,
         guestEmail: booking.guestEmail,

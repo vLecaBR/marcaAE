@@ -185,15 +185,16 @@ function BookingCard({ booking }: { booking: {
       </div>
 
       {/* Ações / Status Base */}
-      <div className="mt-auto pt-4 border-t border-zinc-800/60">
+      <div className="mt-auto pt-4 border-t border-zinc-800/60 flex items-center justify-between">
         {isPending ? (
           <BookingActions uid={booking.uid} status={booking.status} />
         ) : (
-          <div className="flex items-center justify-between text-xs">
-            <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500/10 px-2 py-1 font-medium text-emerald-400">
+          <>
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500/10 px-2 py-1 font-medium text-emerald-400 text-xs">
               Confirmado
             </span>
-          </div>
+            <BookingActions uid={booking.uid} status={booking.status} />
+          </>
         )}
       </div>
     </div>

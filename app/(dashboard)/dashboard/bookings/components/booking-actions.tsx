@@ -2,12 +2,10 @@
 
 import { useState } from "react"
 import { approveBookingAction, rejectBookingAction } from "../actions"
-import { CheckCircle2, XCircle, Clock } from "lucide-react"
+import { CheckCircle2, XCircle } from "lucide-react"
 
 export function BookingActions({ uid, status }: { uid: string, status: string }) {
   const [loading, setLoading] = useState(false)
-
-  if (status !== "PENDING") return null
 
   async function handleApprove() {
     setLoading(true)
@@ -16,11 +14,28 @@ export function BookingActions({ uid, status }: { uid: string, status: string })
   }
 
   async function handleReject() {
-    const reason = prompt("Motivo da recusa (opcional):") ?? "Recusado pelo profissional."
+    const reason = prompt(status === "PENDING" ? "Motivo da recusa (opcional):" : "Motivo do cancelamento (opcional):") ?? (status === "PENDING" ? "Recusado pelo profissional." : "Cancelado pelo profissional.")
     setLoading(true)
     await rejectBookingAction(uid, reason)
     setLoading(false)
   }
+
+  if (status === "CONFIRMED") {
+    return (
+      <div className="flex items-center gap-2">
+        <button
+          onClick={handleReject}
+          disabled={loading}
+          className="flex items-center gap-1.5 rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-1.5 text-xs font-medium text-rose-400 hover:bg-rose-500/20 transition-colors disabled:opacity-50"
+        >
+          <XCircle className="h-3.5 w-3.5" />
+          Cancelar
+        </button>
+      </div>
+    )
+  }
+
+  if (status !== "PENDING") return null
 
   return (
     <div className="flex items-center gap-2">
