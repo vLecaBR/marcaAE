@@ -34,6 +34,7 @@ model User {
   schedules         Schedule[]
   scheduleExceptions ScheduleException[]
   bookingsAsOwner   Booking[]           @relation("BookingOwner")
+  teamMembers       TeamMember[]
 
   @@index([email])
   @@index([username])
@@ -80,6 +81,48 @@ model VerificationToken {
 
   @@unique([identifier, token])
   @@map("verification_tokens")
+}
+
+// ─────────────────────────────────────────────
+// DOMAIN — Teams
+// ─────────────────────────────────────────────
+
+model Team {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?  @db.Text
+  logo        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members    TeamMember[]
+  eventTypes EventType[]
+
+  @@map("teams")
+}
+
+model TeamMember {
+  id        String   @id @default(cuid())
+  teamId    String
+  userId    String
+  role      TeamRole @default(MEMBER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+  @@map("team_members")
+}
+
+enum TeamRole {
+  OWNER
+  ADMIN
+  MEMBER
 }
 
 // ─────────────────────────────────────────────
@@ -131,10 +174,13 @@ model EventType {
   updatedAt DateTime @updatedAt
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId   String?
+  team     Team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
   bookings Booking[]
 
   @@unique([userId, slug])
   @@index([userId])
+  @@index([teamId])
   @@index([slug])
   @@map("event_types")
 }
