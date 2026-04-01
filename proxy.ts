@@ -1,8 +1,11 @@
-import { auth } from "@/auth"
+import NextAuth from "next-auth"
+import authConfig from "./auth.config"
 import { NextResponse } from "next/server"
 
+const { auth } = NextAuth(authConfig)
+
 const PUBLIC_ROUTES = ["/", "/login"]
-const PUBLIC_PREFIXES = ["/book/", "/api/book/"]
+const PUBLIC_PREFIXES = ["/book/", "/api/book/", "/api/webhooks/"]
 const AUTH_API_PREFIX = "/api/auth"
 const ONBOARDING_ROUTE = "/onboarding"
 const DEFAULT_AUTHENTICATED_ROUTE = "/dashboard"
@@ -11,7 +14,7 @@ export default auth((req) => {
   const { nextUrl, auth: session } = req
   const pathname = nextUrl.pathname
 
-  // Ignora rotas do auth
+  // Ignora rotas do auth para evitar conflitos
   if (pathname.startsWith(AUTH_API_PREFIX)) {
     return NextResponse.next()
   }

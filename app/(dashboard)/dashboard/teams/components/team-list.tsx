@@ -1,8 +1,9 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { TeamForm } from "./team-form"
-import { Users, MoreVertical, Plus } from "lucide-react"
+import { Users, MoreVertical, Plus, ArrowRight } from "lucide-react"
 
 type TeamData = {
   id: string
@@ -65,25 +66,34 @@ export function TeamList({ teams, currentUserId }: TeamListProps) {
               </div>
             </div>
             
-            <div className="mt-5 border-t border-zinc-800 pt-4 flex -space-x-2">
-              {team.members.slice(0, 5).map((member, i) => (
-                <div 
-                  key={i} 
-                  className="h-8 w-8 rounded-full ring-2 ring-zinc-900 bg-zinc-800 flex items-center justify-center overflow-hidden"
-                  title={`${member.user.name || member.user.email} (${member.role})`}
-                >
-                  {member.user.image ? (
-                    <img src={member.user.image} alt={member.user.name || ""} className="h-full w-full object-cover" />
-                  ) : (
-                    <span className="text-xs font-medium text-white">{member.user.name?.[0]?.toUpperCase() || member.user.email[0].toUpperCase()}</span>
-                  )}
-                </div>
-              ))}
-              {team.members.length > 5 && (
-                <div className="h-8 w-8 rounded-full ring-2 ring-zinc-900 bg-zinc-800 flex items-center justify-center">
-                  <span className="text-xs font-medium text-white">+{team.members.length - 5}</span>
-                </div>
-              )}
+            <div className="mt-5 border-t border-zinc-800 pt-4 flex items-center justify-between">
+              <div className="flex -space-x-2">
+                {team.members.slice(0, 5).map((member, i) => (
+                  <div 
+                    key={i} 
+                    className="h-8 w-8 rounded-full ring-2 ring-zinc-900 bg-zinc-800 flex items-center justify-center overflow-hidden"
+                    title={`${member.user.name || member.user.email} (${member.role})`}
+                  >
+                    {member.user.image ? (
+                      <img src={member.user.image} alt={member.user.name || ""} className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="text-xs font-medium text-white">{member.user.name?.[0]?.toUpperCase() || member.user.email[0].toUpperCase()}</span>
+                    )}
+                  </div>
+                ))}
+                {team.members.length > 5 && (
+                  <div className="h-8 w-8 rounded-full ring-2 ring-zinc-900 bg-zinc-800 flex items-center justify-center">
+                    <span className="text-xs font-medium text-white">+{team.members.length - 5}</span>
+                  </div>
+                )}
+              </div>
+              
+              <Link 
+                href={`/dashboard/teams/${team.id}`}
+                className="flex items-center gap-1 text-xs font-medium text-violet-400 hover:text-violet-300 transition-colors"
+              >
+                Gerenciar <ArrowRight className="h-3 w-3" />
+              </Link>
             </div>
           </div>
         ))}

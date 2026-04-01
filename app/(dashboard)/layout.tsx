@@ -2,7 +2,7 @@ import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
-import { Calendar, CheckCircle2, Home, Link as LinkIcon, LogOut, Users } from "lucide-react"
+import { Calendar, CheckCircle2, Home, Link as LinkIcon, LogOut, Users, User } from "lucide-react"
 import { signOut } from "@/auth"
 
 const NAV_ITEMS = [
@@ -30,6 +30,11 @@ const NAV_ITEMS = [
     href: "/settings/availability",
     label: "Disponibilidade",
     icon: <Calendar className="h-5 w-5" />,
+  },
+  {
+    href: "/settings/profile",
+    label: "Meu Perfil",
+    icon: <User className="h-5 w-5" />,
   },
 ]
 
