@@ -98,6 +98,7 @@ model Team {
 
   members    TeamMember[]
   eventTypes EventType[]
+  subscription Subscription?
 
   @@map("teams")
 }
@@ -372,4 +373,25 @@ model BookingResponse {
 
   @@index([bookingId])
   @@map("booking_responses")
+}
+
+// ─────────────────────────────────────────────
+// DOMAIN — Subscriptions (B2B SaaS)
+// ─────────────────────────────────────────────
+
+model Subscription {
+  id                     String    @id @default(cuid())
+  teamId                 String    @unique
+  stripeCustomerId       String    @unique
+  stripeSubscriptionId   String?   @unique
+  stripePriceId          String?
+  stripeCurrentPeriodEnd DateTime?
+  status                 String    @default("active") // active, past_due, canceled, unpaid
+  
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("subscriptions")
 }

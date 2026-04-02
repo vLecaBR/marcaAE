@@ -2,7 +2,7 @@ import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { TeamMembersList } from "./components/team-members-list"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, CreditCard, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import type { Metadata } from "next"
 
@@ -17,6 +17,7 @@ export default async function TeamDetailsPage({ params }: { params: Promise<{ id
   const team = await prisma.team.findUnique({
     where: { id },
     include: {
+      subscription: true,
       members: {
         include: {
           user: { select: { id: true, name: true, email: true, image: true } }
@@ -31,8 +32,27 @@ export default async function TeamDetailsPage({ params }: { params: Promise<{ id
   const currentMember = team.members.find(m => m.userId === session.user.id)
   if (!currentMember) redirect("/dashboard/teams")
 
+  const isSubscribed = team.subscription?.status === "active"
+
   return (
     <div className="space-y-8">
+      {!isSubscribed && currentMember.role === "OWNER" && (
+        <div className="flex items-center justify-between rounded-xl bg-amber-500/10 px-4 py-3 border border-amber-500/20">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-500" />
+            <p className="text-sm font-medium text-amber-500">
+              Assinatura pendente! Para que sua equipe possa receber agendamentos, ative o plano Pro.
+            </p>
+          </div>
+          <Link
+            href={`/dashboard/teams/${team.id}/billing`}
+            className="rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-medium text-amber-500 hover:bg-amber-500/30 transition-colors"
+          >
+            Assinar Agora
+          </Link>
+        </div>
+      )}
+
       <div className="flex items-center gap-4">
         <Link 
           href="/dashboard/teams"
@@ -68,6 +88,15 @@ export default async function TeamDetailsPage({ params }: { params: Promise<{ id
                   marcaai.com/team/{team.slug}
                 </a>
               </div>
+              {currentMember.role === "OWNER" && (
+                <div>
+                  <p className="font-medium text-zinc-300">Faturamento</p>
+                  <Link href={`/dashboard/teams/${team.id}/billing`} className="text-violet-400 hover:underline flex items-center gap-1 mt-1">
+                    <CreditCard className="h-4 w-4" />
+                    Gerenciar Assinatura
+                  </Link>
+                </div>
+              )}
               {team.description && (
                 <div>
                   <p className="font-medium text-zinc-300">Descrição</p>
