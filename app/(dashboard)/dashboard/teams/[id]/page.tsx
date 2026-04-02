@@ -2,7 +2,7 @@ import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { TeamMembersList } from "./components/team-members-list"
-import { ArrowLeft, CreditCard, AlertCircle } from "lucide-react"
+import { ArrowLeft, CreditCard, AlertCircle, QrCode } from "lucide-react"
 import Link from "next/link"
 import type { Metadata } from "next"
 
@@ -89,13 +89,22 @@ export default async function TeamDetailsPage({ params }: { params: Promise<{ id
                 </a>
               </div>
               {currentMember.role === "OWNER" && (
-                <div>
-                  <p className="font-medium text-zinc-300">Faturamento</p>
-                  <Link href={`/dashboard/teams/${team.id}/billing`} className="text-violet-400 hover:underline flex items-center gap-1 mt-1">
-                    <CreditCard className="h-4 w-4" />
-                    Gerenciar Assinatura
-                  </Link>
-                </div>
+                <>
+                  <div>
+                    <p className="font-medium text-zinc-300">Faturamento</p>
+                    <Link href={`/dashboard/teams/${team.id}/billing`} className="text-violet-400 hover:underline flex items-center gap-1 mt-1">
+                      <CreditCard className="h-4 w-4" />
+                      Gerenciar Assinatura
+                    </Link>
+                  </div>
+                  <div>
+                    <p className="font-medium text-zinc-300">Marketing (Mesa/Balcão)</p>
+                    <Link href={`/dashboard/teams/${team.id}/marketing`} className="text-emerald-400 hover:underline flex items-center gap-1 mt-1">
+                      <QrCode className="h-4 w-4" />
+                      Imprimir QR Code
+                    </Link>
+                  </div>
+                </>
               )}
               {team.description && (
                 <div>
