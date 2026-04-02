@@ -44,6 +44,8 @@ jobs:
           STRIPE_PRO_PRICE_ID: "mock"
           WHATSAPP_API_URL: "mock"
           WHATSAPP_API_KEY: "mock"
+          RESEND_API_KEY: "mock"
+          RESEND_FROM_EMAIL: "mock@mock.com"
 
       - name: Run Unit Tests (Vitest)
         run: npm run test
@@ -86,6 +88,8 @@ jobs:
           STRIPE_PRO_PRICE_ID: "mock"
           WHATSAPP_API_URL: "mock"
           WHATSAPP_API_KEY: "mock"
+          RESEND_API_KEY: "mock"
+          RESEND_FROM_EMAIL: "mock@mock.com"
 
       - name: Upload Playwright Report
         uses: actions/upload-artifact@v4
