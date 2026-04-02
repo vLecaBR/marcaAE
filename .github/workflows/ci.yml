@@ -35,6 +35,15 @@ jobs:
 
       - name: Build Next.js
         run: npm run build
+        env:
+          DATABASE_URL: "postgresql://mock"
+          AUTH_SECRET: "test-secret-never-use-in-prod"
+          AUTH_GOOGLE_ID: "mock"
+          AUTH_GOOGLE_SECRET: "mock"
+          STRIPE_SECRET_KEY: "mock"
+          STRIPE_PRO_PRICE_ID: "mock"
+          WHATSAPP_API_URL: "mock"
+          WHATSAPP_API_KEY: "mock"
 
       - name: Run Unit Tests (Vitest)
         run: npm run test
@@ -66,13 +75,15 @@ jobs:
       - name: Run Playwright Tests
         run: npm run test:e2e
         env:
-          # Para testes E2E reais no github actions, mockamos as variáveis base
-          # Se os testes exigissem banco real, você usaria secrets.DATABASE_URL
           NEXT_PUBLIC_APP_URL: "http://localhost:3000"
           AUTH_SECRET: "test-secret-never-use-in-prod"
           AUTH_GOOGLE_ID: "mock"
           AUTH_GOOGLE_SECRET: "mock"
           DATABASE_URL: "postgresql://mock"
+          STRIPE_SECRET_KEY: "mock"
+          STRIPE_PRO_PRICE_ID: "mock"
+          WHATSAPP_API_URL: "mock"
+          WHATSAPP_API_KEY: "mock"
 
       - name: Upload Playwright Report
         uses: actions/upload-artifact@v4
