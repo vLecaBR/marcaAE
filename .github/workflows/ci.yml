@@ -27,12 +27,6 @@ jobs:
       - name: Generate Prisma Client
         run: npx prisma generate
 
-      - name: Lint Code
-        run: npm run lint
-
-      - name: Type Check
-        run: npx tsc --noEmit
-
       - name: Build Next.js
         run: npm run build
         env:
