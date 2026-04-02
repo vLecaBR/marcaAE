@@ -125,6 +125,7 @@ interface CreateGoogleEventInput {
   guestName: string
   guestEmail: string
   createMeetLink?: boolean
+  recurringCount?: number
 }
 
 /**
@@ -149,6 +150,11 @@ export async function createGoogleCalendarEvent(
     attendees: [
       { email: input.guestEmail, displayName: input.guestName }
     ],
+  }
+
+  // Set Recurrence if recurringCount is provided
+  if (input.recurringCount && input.recurringCount > 1) {
+    eventBody.recurrence = [`RRULE:FREQ=WEEKLY;COUNT=${input.recurringCount}`]
   }
 
   // Request a Google Meet link if required
