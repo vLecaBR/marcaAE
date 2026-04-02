@@ -8,11 +8,11 @@ import type { Metadata } from "next"
 
 export const metadata: Metadata = { title: "Detalhes da Equipe | MarcaAí" }
 
-export default async function TeamDetailsPage({ params }: { params: { id: string } }) {
+export default async function TeamDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session?.user?.id) redirect("/login")
 
-  const { id } = params
+  const { id } = await params
 
   const team = await prisma.team.findUnique({
     where: { id },

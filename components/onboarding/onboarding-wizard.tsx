@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useSession } from "next-auth/react"
 import { StepProfile } from "./step-profile"
 import { StepAvailability } from "./step-availability"
 import { completeOnboardingAction } from "@/lib/actions/onboarding"
@@ -33,6 +34,7 @@ const STEPS = [
 ]
 
 export function OnboardingWizard({ user, schedule }: WizardProps) {
+  const { update } = useSession()
   const [currentStep, setCurrentStep] = useState(1)
   const [isFinishing, setIsFinishing] = useState(false)
   const [finishError, setFinishError] = useState<string | null>(null)
@@ -52,10 +54,10 @@ export function OnboardingWizard({ user, schedule }: WizardProps) {
         return
       }
 
-      // 🔥 força atualização do JWT/session no NextAuth
-      await fetch("/api/auth/session", { method: "POST" })
+      // Atualiza a sessão explicitamente para o NextAuth injetar o novo cookie
+      await update({ onboarded: true })
 
-      // 🔥 força reload completo (middleware vai ler atualizado)
+      // força reload completo para garantir que tudo resetou
       window.location.href = "/dashboard"
     } catch (err) {
       console.error(err)

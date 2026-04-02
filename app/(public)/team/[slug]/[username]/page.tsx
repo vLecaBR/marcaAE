@@ -21,11 +21,12 @@ const LOCATION_LABELS: Record<string, string> = {
   PHONE: "Telefone", IN_PERSON: "Presencial", CUSTOM: "Local remoto",
 }
 
-export async function generateMetadata({ params }: { params: { slug: string; username: string } }) {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string; username: string }> }) {
+  const { slug, username } = await params
   const teamMember = await prisma.teamMember.findFirst({
     where: { 
-      team: { slug: params.slug },
-      user: { username: params.username }
+      team: { slug },
+      user: { username }
     },
     include: {
       team: true,
@@ -41,8 +42,8 @@ export async function generateMetadata({ params }: { params: { slug: string; use
   }
 }
 
-export default async function PublicTeamMemberPage({ params }: { params: { slug: string; username: string } }) {
-  const { slug, username } = params
+export default async function PublicTeamMemberPage({ params }: { params: Promise<{ slug: string; username: string }> }) {
+  const { slug, username } = await params
 
   const teamMember = await prisma.teamMember.findFirst({
     where: { 
