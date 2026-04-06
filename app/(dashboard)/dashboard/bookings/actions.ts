@@ -44,6 +44,7 @@ export async function approveBookingAction(uid: string) {
     guestName: booking.guestName,
     guestEmail: booking.guestEmail,
     createMeetLink: booking.eventType.locationType === "GOOGLE_MEET",
+    recurringCount: undefined, // Só passa se quisermos forçar o gcal a repetir, mas a modelagem do MarcaAi gera Bookings separados.
   })
 
   if (eventResponse) {

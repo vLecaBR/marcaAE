@@ -16,6 +16,7 @@ const bookingFormSchema = z.object({
   phone: z.string().optional(),
   notes: z.string().max(500).optional(),
   responses: z.record(z.string(), z.string()).optional(),
+  recurringCount: z.number().int().min(1).max(52).optional(),
 })
 
 type BookingFormInput = z.infer<typeof bookingFormSchema>
@@ -78,6 +79,7 @@ export function BookingForm({
         guestPhone:    data.phone,
         guestNotes:    data.notes,
         responses:     data.responses ? Object.entries(data.responses).map(([questionId, answer]) => ({ questionId, answer })) : [],
+        recurringCount: data.recurringCount ?? 1,
       }),
     })
 

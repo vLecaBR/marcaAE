@@ -22,6 +22,8 @@ export const createBookingSchema = z.object({
     )
     .optional()
     .default([]),
+
+  recurringCount: z.number().int().min(1).max(52).optional().nullable(),
 })
 .refine(
   (data) => new Date(data.startTimeUtc) < new Date(data.endTimeUtc),

@@ -135,70 +135,88 @@ export async function createBooking(
   try {
     const booking = await prisma.$transaction(
       async (tx) => {
-        const conflictingRows = await tx.$queryRaw<{ id: string }[]>`
-          SELECT id FROM bookings
-          WHERE
-            user_id   = ${input.ownerId}
-            AND status IN ('CONFIRMED', 'PENDING')
-            AND start_time < ${endUtc}::timestamptz
-            AND end_time   > ${startUtc}::timestamptz
-          FOR UPDATE SKIP LOCKED
-        `
+        const requestedCount = input.recurringCount ?? 1
+        const createdBookings = []
+        const recurringEventId = requestedCount > 1 ? Math.random().toString(36).substring(2, 11) : null
 
-        if (conflictingRows.length > 0) {
-          throw new ConflictError("Horário já reservado.")
-        }
+        for (let i = 0; i < requestedCount; i++) {
+          const currentStart = addDays(startUtc, i * 7)
+          const currentEnd = addDays(endUtc, i * 7)
 
-        const newBooking = await tx.booking.create({
-          data: {
-            userId: input.ownerId,
-            eventTypeId: input.eventTypeId,
-            guestName: input.guestName,
-            guestEmail: input.guestEmail,
-            guestPhone: input.guestPhone ?? null,
-            guestNotes: input.guestNotes ?? null,
-            startTime: startUtc,
-            endTime: endUtc,
-            guestTimeZone: input.guestTimeZone,
-            status: eventType.requiresConfirm ? "PENDING" : "CONFIRMED",
-            responses: input.responses && input.responses.length > 0 ? {
-              createMany: {
-                data: input.responses.map(r => ({
-                  questionId: r.questionId,
-                  answer: r.answer,
-                }))
-              }
-            } : undefined
-          },
-          select: {
-            id: true,
-            uid: true,
-            userId: true,
-            meetingId: true,
-            startTime: true,
-            endTime: true,
-            guestName: true,
-            guestEmail: true,
-            status: true,
-            eventType: {
-              select: {
-                title: true,
-                requiresConfirm: true,
-                locationType: true,
-                locationValue: true,
-                user: { select: { name: true } },
+          const conflictingRows = await tx.$queryRaw<{ id: string }[]>`
+            SELECT id FROM bookings
+            WHERE
+              user_id   = ${input.ownerId}
+              AND status IN ('CONFIRMED', 'PENDING')
+              AND start_time < ${currentEnd}::timestamptz
+              AND end_time   > ${currentStart}::timestamptz
+            FOR UPDATE SKIP LOCKED
+          `
+
+          if (conflictingRows.length > 0) {
+            throw new ConflictError(`Horário já reservado na repetição da semana ${i + 1}.`)
+          }
+
+          const newBooking = await tx.booking.create({
+            data: {
+              userId: input.ownerId,
+              eventTypeId: input.eventTypeId,
+              guestName: input.guestName,
+              guestEmail: input.guestEmail,
+              guestPhone: input.guestPhone ?? null,
+              guestNotes: input.guestNotes ?? null,
+              startTime: currentStart,
+              endTime: currentEnd,
+              guestTimeZone: input.guestTimeZone,
+              status: eventType.requiresConfirm ? "PENDING" : "CONFIRMED",
+              recurringEventId,
+              recurringIndex: requestedCount > 1 ? i + 1 : null,
+              responses: input.responses && input.responses.length > 0 ? {
+                createMany: {
+                  data: input.responses.map(r => ({
+                    questionId: r.questionId,
+                    answer: r.answer,
+                  }))
+                }
+              } : undefined
+            },
+            select: {
+              id: true,
+              uid: true,
+              userId: true,
+              meetingId: true,
+              startTime: true,
+              endTime: true,
+              guestName: true,
+              guestEmail: true,
+              status: true,
+              recurringEventId: true,
+              recurringIndex: true,
+              eventType: {
+                select: {
+                  title: true,
+                  requiresConfirm: true,
+                  locationType: true,
+                  locationValue: true,
+                  user: { select: { name: true } },
+                },
               },
             },
-          },
-        })
+          })
 
-        return newBooking
+          createdBookings.push(newBooking)
+        }
+
+        return createdBookings
       },
       {
-        timeout: 10000,
+        timeout: 20000, // Tempo maior para processar múltiplas repetições
         isolationLevel: "Serializable",
       }
     )
+
+    // Pegamos a primeira reserva para usar como referência para pagamentos e e-mails base
+    const firstBooking = booking[0]
 
     // ── PAGAMENTO PIX (SE APLICÁVEL) ─────────────────────────
 
@@ -210,12 +228,12 @@ export async function createBooking(
         description: `Agendamento: ${eventType.title}`,
         payerEmail: input.guestEmail,
         payerFirstName: input.guestName.split(" ")[0],
-        externalReference: booking.uid,
+        externalReference: firstBooking.uid,
       })
 
       if (paymentResult) {
-        await prisma.booking.update({
-          where: { id: booking.id },
+        await prisma.booking.updateMany({
+          where: { recurringEventId: firstBooking.recurringEventId ?? firstBooking.id }, // Se não tiver repetição usa id, se tiver atualiza todos da repetição
           data: {
             paymentReference: paymentResult.id,
             paymentStatus: "UNPAID",
@@ -235,17 +253,18 @@ export async function createBooking(
     let finalMeetingUrl = eventType.locationValue ?? null
     let finalMeetingId = null
 
-    if (booking.status === "CONFIRMED") {
+    if (firstBooking.status === "CONFIRMED") {
       const { createGoogleCalendarEvent } = await import("@/lib/google/calendar")
       const eventResponse = await createGoogleCalendarEvent({
         userId: input.ownerId,
-        title: `${booking.eventType.title} com ${booking.guestName}`,
-        description: `Agendamento via MarcaAí\n\nConvidado: ${booking.guestName} (${booking.guestEmail})\nNotas: ${input.guestNotes ?? "Nenhuma"}`,
+        title: `${firstBooking.eventType.title} com ${firstBooking.guestName}`,
+        description: `Agendamento via MarcaAí\n\nConvidado: ${firstBooking.guestName} (${firstBooking.guestEmail})\nNotas: ${input.guestNotes ?? "Nenhuma"}`,
         startTime: startUtc,
         endTime: endUtc,
-        guestName: booking.guestName,
-        guestEmail: booking.guestEmail,
+        guestName: firstBooking.guestName,
+        guestEmail: firstBooking.guestEmail,
         createMeetLink: eventType.locationType === "GOOGLE_MEET",
+        recurringCount: input.recurringCount ?? undefined,
       })
 
       if (eventResponse) {
@@ -254,59 +273,57 @@ export async function createBooking(
           finalMeetingUrl = eventResponse.meetLink
         }
 
-        await prisma.booking.update({
-          where: { id: booking.id },
-          data: {
-            meetingId: finalMeetingId,
-            meetingUrl: finalMeetingUrl,
-          },
-        })
+        // Atualiza todos os bookings da repetição com o mesmo link
+        if (firstBooking.recurringEventId) {
+           await prisma.booking.updateMany({
+             where: { recurringEventId: firstBooking.recurringEventId },
+             data: { meetingId: finalMeetingId, meetingUrl: finalMeetingUrl }
+           })
+        } else {
+           await prisma.booking.update({
+             where: { id: firstBooking.id },
+             data: { meetingId: finalMeetingId, meetingUrl: finalMeetingUrl }
+           })
+        }
       }
     }
 
     if (ownerData) {
-    if (booking.meetingId) {
-      const { deleteGoogleCalendarEvent } = await import("@/lib/google/calendar")
-      void deleteGoogleCalendarEvent(booking.userId, booking.meetingId).catch(err => {
-        console.error("[deleteGoogleCalendarEvent]", err)
-      })
-    }
-
-    const emailData: BookingEmailData = {
-        uid: booking.uid,
-        guestName: booking.guestName,
-        guestEmail: booking.guestEmail,
-        ownerName: booking.eventType.user.name ?? "Organizador",
+      const emailData: BookingEmailData = {
+        uid: firstBooking.uid,
+        guestName: firstBooking.guestName,
+        guestEmail: firstBooking.guestEmail,
+        ownerName: firstBooking.eventType.user.name ?? "Organizador",
         ownerEmail: ownerData.email,
-        eventTitle: booking.eventType.title,
-        startTime: booking.startTime,
-        endTime: booking.endTime,
+        eventTitle: firstBooking.eventType.title,
+        startTime: firstBooking.startTime,
+        endTime: firstBooking.endTime,
         guestTimeZone: input.guestTimeZone,
         ownerTimeZone: ownerData.timeZone,
         locationType: eventType.locationType,
         meetingUrl: finalMeetingUrl,
-        requiresConfirm: booking.eventType.requiresConfirm,
+        requiresConfirm: firstBooking.eventType.requiresConfirm,
       }
 
       const whatsappData = {
         phone: input.guestPhone ?? "",
-        guestName: booking.guestName,
-        eventTitle: booking.eventType.title,
-        ownerName: booking.eventType.user.name ?? "Organizador",
-        startTime: booking.startTime,
+        guestName: firstBooking.guestName,
+        eventTitle: firstBooking.eventType.title,
+        ownerName: firstBooking.eventType.user.name ?? "Organizador",
+        startTime: firstBooking.startTime,
         appUrl: APP_URL,
-        uid: booking.uid,
+        uid: firstBooking.uid,
       }
 
       void Promise.all([
-        booking.eventType.requiresConfirm
+        firstBooking.eventType.requiresConfirm
           ? sendBookingPendingEmail(emailData)
           : sendBookingConfirmedEmail(emailData),
         sendOwnerNotifyEmail(emailData),
       ]).catch((err) => console.error("[email dispatch]", err))
 
       if (whatsappData.phone) {
-        void (booking.eventType.requiresConfirm
+        void (firstBooking.eventType.requiresConfirm
           ? sendWhatsAppPending(whatsappData)
           : sendWhatsAppConfirmation(whatsappData)).catch(err => console.error("[whatsapp dispatch]", err))
       }
@@ -317,14 +334,14 @@ export async function createBooking(
     return {
       status: "success",
       data: {
-        uid: booking.uid,
-        startTime: booking.startTime,
-        endTime: booking.endTime,
-        guestName: booking.guestName,
-        guestEmail: booking.guestEmail,
-        eventTitle: booking.eventType.title,
-        ownerName: booking.eventType.user.name ?? "Organizador",
-        requiresConfirm: booking.eventType.requiresConfirm,
+        uid: firstBooking.uid,
+        startTime: firstBooking.startTime,
+        endTime: firstBooking.endTime,
+        guestName: firstBooking.guestName,
+        guestEmail: firstBooking.guestEmail,
+        eventTitle: firstBooking.eventType.title,
+        ownerName: firstBooking.eventType.user.name ?? "Organizador",
+        requiresConfirm: firstBooking.eventType.requiresConfirm,
         pixData,
       },
     }
