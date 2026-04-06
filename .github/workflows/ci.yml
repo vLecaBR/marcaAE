@@ -157,6 +157,24 @@ jobs:
           path: playwright-report/
           retention-days: 14
 
+      - name: Build Next.js for Lighthouse
+        run: npm run build
+        env:
+          DATABASE_URL: "postgresql://user:password@localhost:5432/testdb"
+          AUTH_SECRET: "test-secret-never-use-in-prod"
+          AUTH_GOOGLE_ID: "mock"
+          AUTH_GOOGLE_SECRET: "mock"
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v12
+        env:
+          DATABASE_URL: "postgresql://user:password@localhost:5432/testdb"
+          AUTH_SECRET: "test-secret-never-use-in-prod"
+          AUTH_GOOGLE_ID: "mock"
+          AUTH_GOOGLE_SECRET: "mock"
+        with:
+          configPath: "./.lighthouserc.json"
+
   deploy:
     name: Deploy to Vercel (CD)
     runs-on: ubuntu-latest

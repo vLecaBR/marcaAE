@@ -8,6 +8,9 @@ test.describe("Fluxo do Cliente (Agendamento Público)", () => {
     // Verifica se a página carregou com o título do evento
     await expect(page.locator("h1", { hasText: "Reunião de Vendas E2E" })).toBeVisible()
 
+    // Regressão Visual (Visual Regression Testing)
+    await expect(page).toHaveScreenshot('public-booking-page.png', { fullPage: true, maxDiffPixels: 100 })
+
     // 2. Selecionar uma data disponível (simulada)
     // O DatePicker usa botões para os dias. Vamos clicar no primeiro dia disponível que não esteja desabilitado.
     // Procura por um botão de dia (gridcell) que não tenha o atributo disabled.
