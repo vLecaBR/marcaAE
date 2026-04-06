@@ -18,6 +18,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
+      include: ["lib/**", "actions/**"],
       exclude: [
         "node_modules/",
         "tests/e2e/",
@@ -26,6 +27,12 @@ export default defineConfig({
         ".next/",
         "components/ui/", // Geralmente ignoramos componentes da lib de UI puro (shadcn, radix)
       ],
+      thresholds: {
+        lines: 70,
+        functions: 70,
+        branches: 70,
+        statements: 70,
+      }
     },
   },
 })
