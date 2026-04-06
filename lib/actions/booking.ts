@@ -220,127 +220,141 @@ export async function createBooking(
     // Pegamos a primeira reserva para usar como referência para pagamentos e e-mails base
     const firstBooking = booking[0]
 
-    // ── PAGAMENTO PIX (SE APLICÁVEL) ─────────────────────────
-
     let pixData = null
-    if (eventType.price && eventType.price > 0) {
-      const { createPixPayment } = await import("@/lib/payments/mercadopago")
-      const paymentResult = await createPixPayment({
-        transactionAmount: eventType.price / 100,
-        description: `Agendamento: ${eventType.title}`,
-        payerEmail: input.guestEmail,
-        payerFirstName: input.guestName.split(" ")[0],
-        externalReference: firstBooking.uid,
-      })
-
-      if (paymentResult) {
-        await prisma.booking.updateMany({
-          where: { recurringEventId: firstBooking.recurringEventId ?? firstBooking.id }, // Se não tiver repetição usa id, se tiver atualiza todos da repetição
-          data: {
-            paymentReference: paymentResult.id,
-            paymentStatus: "UNPAID",
-          }
-        })
-        pixData = paymentResult
-      }
-    }
-
-    // ── EMAILS (NÃO BLOQUEANTE) ─────────────────────────
-
-    const ownerData = await prisma.user.findUnique({
-      where: { id: input.ownerId },
-      select: { email: true, timeZone: true },
-    })
-
     let finalMeetingUrl = eventType.locationValue ?? null
-    let finalMeetingId = null
 
-    if (firstBooking.status === "CONFIRMED") {
-      const { createGoogleCalendarEvent } = await import("@/lib/google/calendar")
-      const eventResponse = await createGoogleCalendarEvent({
-        userId: input.ownerId,
-        title: `${firstBooking.eventType.title} com ${firstBooking.guestName}`,
-        description: `Agendamento via MarcaAí\n\nConvidado: ${firstBooking.guestName} (${firstBooking.guestEmail})\nNotas: ${input.guestNotes ?? "Nenhuma"}`,
-        startTime: startUtc,
-        endTime: endUtc,
-        guestName: firstBooking.guestName,
-        guestEmail: firstBooking.guestEmail,
-        createMeetLink: eventType.locationType === "GOOGLE_MEET",
-        recurringCount: input.recurringCount ?? undefined,
+    try {
+      // ── PAGAMENTO PIX (SE APLICÁVEL) ─────────────────────────
+
+      if (eventType.price && eventType.price > 0) {
+        const { createPixPayment } = await import("@/lib/payments/mercadopago")
+        const paymentResult = await createPixPayment({
+          transactionAmount: eventType.price / 100,
+          description: `Agendamento: ${eventType.title}`,
+          payerEmail: input.guestEmail,
+          payerFirstName: input.guestName.split(" ")[0],
+          externalReference: firstBooking.uid,
+        })
+
+        if (paymentResult) {
+          await prisma.booking.updateMany({
+            where: { recurringEventId: firstBooking.recurringEventId ?? firstBooking.id }, // Se não tiver repetição usa id, se tiver atualiza todos da repetição
+            data: {
+              paymentReference: paymentResult.id,
+              paymentStatus: "UNPAID",
+            }
+          })
+          pixData = paymentResult
+        }
+      }
+
+      // ── GOOGLE CALENDAR E EMAILS (NÃO BLOQUEANTE) ─────────────────────────
+
+      const ownerData = await prisma.user.findUnique({
+        where: { id: input.ownerId },
+        select: { email: true, timeZone: true },
       })
 
-      if (eventResponse) {
-        finalMeetingId = eventResponse.eventId
-        if (eventResponse.meetLink) {
-          finalMeetingUrl = eventResponse.meetLink
+      let finalMeetingId = null
+
+      if (firstBooking.status === "CONFIRMED") {
+        const { createGoogleCalendarEvent } = await import("@/lib/google/calendar")
+        const eventResponse = await createGoogleCalendarEvent({
+          userId: input.ownerId,
+          title: `${firstBooking.eventType.title} com ${firstBooking.guestName}`,
+          description: `Agendamento via MarcaAí\n\nConvidado: ${firstBooking.guestName} (${firstBooking.guestEmail})\nNotas: ${input.guestNotes ?? "Nenhuma"}`,
+          startTime: startUtc,
+          endTime: endUtc,
+          guestName: firstBooking.guestName,
+          guestEmail: firstBooking.guestEmail,
+          createMeetLink: eventType.locationType === "GOOGLE_MEET",
+          recurringCount: input.recurringCount ?? undefined,
+        })
+
+        if (eventResponse) {
+          finalMeetingId = eventResponse.eventId
+          if (eventResponse.meetLink) {
+            finalMeetingUrl = eventResponse.meetLink
+          }
+
+          // Atualiza todos os bookings da repetição com o mesmo link
+          if (firstBooking.recurringEventId) {
+             await prisma.booking.updateMany({
+               where: { recurringEventId: firstBooking.recurringEventId },
+               data: { meetingId: finalMeetingId, meetingUrl: finalMeetingUrl }
+             })
+          } else {
+             await prisma.booking.update({
+               where: { id: firstBooking.id },
+               data: { meetingId: finalMeetingId, meetingUrl: finalMeetingUrl }
+             })
+          }
+        }
+      }
+
+      if (ownerData) {
+        const emailData: BookingEmailData = {
+          uid: firstBooking.uid,
+          guestName: firstBooking.guestName,
+          guestEmail: firstBooking.guestEmail,
+          ownerName: firstBooking.eventType.user.name ?? "Organizador",
+          ownerEmail: ownerData.email,
+          eventTitle: firstBooking.eventType.title,
+          startTime: firstBooking.startTime,
+          endTime: firstBooking.endTime,
+          guestTimeZone: input.guestTimeZone,
+          ownerTimeZone: ownerData.timeZone,
+          locationType: eventType.locationType,
+          meetingUrl: finalMeetingUrl,
+          requiresConfirm: firstBooking.eventType.requiresConfirm,
+          allBookings: booking.map((b: any) => ({
+            startTime: b.startTime,
+            endTime: b.endTime,
+          })),
         }
 
-        // Atualiza todos os bookings da repetição com o mesmo link
-        if (firstBooking.recurringEventId) {
-           await prisma.booking.updateMany({
-             where: { recurringEventId: firstBooking.recurringEventId },
-             data: { meetingId: finalMeetingId, meetingUrl: finalMeetingUrl }
-           })
-        } else {
-           await prisma.booking.update({
-             where: { id: firstBooking.id },
-             data: { meetingId: finalMeetingId, meetingUrl: finalMeetingUrl }
-           })
+        const whatsappData = {
+          phone: input.guestPhone ?? "",
+          guestName: firstBooking.guestName,
+          eventTitle: firstBooking.eventType.title,
+          ownerName: firstBooking.eventType.user.name ?? "Organizador",
+          startTime: firstBooking.startTime,
+          appUrl: APP_URL,
+          uid: firstBooking.uid,
         }
-      }
-    }
 
-    if (ownerData) {
-      const emailData: BookingEmailData = {
-        uid: firstBooking.uid,
-        guestName: firstBooking.guestName,
-        guestEmail: firstBooking.guestEmail,
-        ownerName: firstBooking.eventType.user.name ?? "Organizador",
-        ownerEmail: ownerData.email,
-        eventTitle: firstBooking.eventType.title,
-        startTime: firstBooking.startTime,
-        endTime: firstBooking.endTime,
-        guestTimeZone: input.guestTimeZone,
-        ownerTimeZone: ownerData.timeZone,
-        locationType: eventType.locationType,
-        meetingUrl: finalMeetingUrl,
-        requiresConfirm: firstBooking.eventType.requiresConfirm,
-        allBookings: booking.map((b: any) => ({
-          startTime: b.startTime,
-          endTime: b.endTime,
-        })),
-      }
-
-      const whatsappData = {
-        phone: input.guestPhone ?? "",
-        guestName: firstBooking.guestName,
-        eventTitle: firstBooking.eventType.title,
-        ownerName: firstBooking.eventType.user.name ?? "Organizador",
-        startTime: firstBooking.startTime,
-        appUrl: APP_URL,
-        uid: firstBooking.uid,
-      }
-
-      try {
-        await Promise.all([
-          firstBooking.eventType.requiresConfirm
-            ? sendBookingPendingEmail(emailData)
-            : sendBookingConfirmedEmail(emailData),
-          sendOwnerNotifyEmail(emailData),
-        ])
-      } catch (err) {
-        console.error("[email dispatch]", err)
-      }
-
-      if (whatsappData.phone) {
         try {
-          await (firstBooking.eventType.requiresConfirm
-            ? sendWhatsAppPending(whatsappData)
-            : sendWhatsAppConfirmation(whatsappData))
+          await Promise.all([
+            firstBooking.eventType.requiresConfirm
+              ? sendBookingPendingEmail(emailData)
+              : sendBookingConfirmedEmail(emailData),
+            sendOwnerNotifyEmail(emailData),
+          ])
         } catch (err) {
-          console.error("[whatsapp dispatch]", err)
+          console.error("[email dispatch]", err)
+        }
+
+        if (whatsappData.phone) {
+          try {
+            await (firstBooking.eventType.requiresConfirm
+              ? sendWhatsAppPending(whatsappData)
+              : sendWhatsAppConfirmation(whatsappData))
+          } catch (err) {
+            console.error("[whatsapp dispatch]", err)
+          }
         }
       }
+    } catch (integrationError) {
+      console.error("[createBooking] Erro na integração externa (Saga failed):", integrationError)
+      
+      // Compensação: deletar agendamentos criados
+      await prisma.booking.deleteMany({
+        where: {
+          id: { in: booking.map((b: any) => b.id) }
+        }
+      })
+      
+      throw new Error("Falha ao conectar com serviços externos. O agendamento foi desfeito.")
     }
 
     // ── RETURN NORMAL ─────────────────────────
