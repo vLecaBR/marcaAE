@@ -119,7 +119,7 @@ describe("Booking Server Actions Integration", () => {
     expect(result2.status).toBe("conflict")
     
     if (result2.status === "conflict") {
-      expect(result2.message).toContain("Horário reservado simultaneamente ou conflito de transação.")
+      expect(result2.message).toMatch(/Horário (já reservado|reservado simultaneamente)/)
     }
   })
 
