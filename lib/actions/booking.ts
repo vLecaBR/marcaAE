@@ -115,8 +115,8 @@ export async function createBooking(
     })),
   }
 
-  const dateFrom = startOfDay(startUtc)
-  const dateTo = endOfDay(startUtc)
+  const dateFrom = startOfDay(addDays(startUtc, -1))
+  const dateTo = endOfDay(addDays(startUtc, 1))
 
   const availableWindows = buildAvailableWindows(scheduleData, dateFrom, dateTo)
 

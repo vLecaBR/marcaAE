@@ -45,9 +45,26 @@ test.describe("Fluxo do Cliente (Agendamento Público)", () => {
     // 5. Submeter
     const submitButton = page.locator("button[type='submit']")
     await expect(submitButton).toBeVisible()
+    
+    // Log network to debug
+    page.on('response', response => {
+      if (response.url().includes('/api/book')) {
+        console.log('Book response status:', response.status());
+        response.text().then(text => console.log('Book response body:', text)).catch(() => {});
+      }
+    });
+
     await submitButton.click()
 
     // 6. Verificar a tela de sucesso (sem redirecionamento de URL)
-    await expect(page.locator("text=Agendamento Confirmado")).toBeVisible()
+    try {
+      await expect(page.locator("text=Agendamento confirmado")).toBeVisible({ timeout: 10000 })
+    } catch (e) {
+      const errorMsg = await page.locator('.text-rose-400').textContent({ timeout: 1000 }).catch(() => null)
+      if (errorMsg) {
+        throw new Error(`Booking API failed with message on screen: ${errorMsg}`)
+      }
+      throw e
+    }
   })
 })

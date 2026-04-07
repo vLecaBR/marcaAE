@@ -88,7 +88,7 @@ export function BookingForm({
     if (res.status === 409) {
       setResult({ status: "conflict" })
     } else if (!res.ok) {
-      setResult({ status: "error", message: json.error ?? "Erro ao agendar." })
+      setResult({ status: "error", message: json.message ?? json.error ?? "Erro ao agendar." })
     } else {
       setResult({
         status: "success",
