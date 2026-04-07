@@ -9,14 +9,14 @@ test.describe("Fluxo do Cliente (Agendamento Público)", () => {
     await expect(page.locator("h1", { hasText: "Reunião de Vendas E2E" })).toBeVisible()
 
     // 2. Selecionar uma data disponível (simulada)
-    // O DatePicker usa botões para os dias. Vamos clicar no primeiro dia disponível que não esteja desabilitado.
-    // Procura por um botão de dia (gridcell) que não tenha o atributo disabled.
-    const dayButton = page.locator("button.rdp-button_reset.rdp-button:not([disabled])").first()
+    // O calendário do marcaAE usa um grid-cols-7 gap-1
+    const calendarGrid = page.locator('.grid-cols-7.gap-1')
+    const dayButton = calendarGrid.locator('button:not([disabled])').first()
     await dayButton.click({ force: true }) // Force just in case
 
     // 3. Selecionar um horário
-    // Os horários geralmente são botões listados na coluna direita
-    const timeSlotButton = page.locator("button", { hasText: ":" }).first()
+    // Os horários geralmente são botões com o formato HH:mm
+    const timeSlotButton = page.getByRole("button").filter({ hasText: /^\d{2}:\d{2}$/ }).first()
     await expect(timeSlotButton).toBeVisible()
     await timeSlotButton.click()
 

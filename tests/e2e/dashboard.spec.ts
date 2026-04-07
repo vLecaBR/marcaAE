@@ -40,34 +40,19 @@ test.describe("Fluxo do Dono (Dashboard)", () => {
     const bookingRow = page.locator(`text=${booking.guestName}`)
     await expect(bookingRow).toBeVisible()
 
-    // Clicar no botão "Ver Detalhes" ou "Cancelar" dependendo do layout
-    // No projeto normal do shadcn as ações estão num dropdown, vamos tentar localizar um botão de cancelar.
-    // Vamos procurar por um botão que contenha "Cancelar" ou o menu de opções.
-    
-    // Supondo que tem um botão de cancelar diretamente visível ou abrindo um menu.
-    // Como não sei exatamente como é a UI de bookings, posso tentar um seletor genérico.
-    // O Shadcn UI pode ter um Button ou um DropdownMenu.
-    // Para simplificar e garantir que o Playwright ache, vou procurar o texto "Cancelar" no elemento de ação da tabela.
+    // O botão Cancelar fica diretamente no card e abre um prompt nativo
+    page.once("dialog", async (dialog) => {
+      await dialog.accept("Imprevisto de teste")
+    })
 
-    const actionsMenuButton = page.locator("button").filter({ has: page.locator("svg.lucide-more-horizontal") }).first()
-    if (await actionsMenuButton.isVisible()) {
-      await actionsMenuButton.click()
-    }
+    const cancelOption = bookingRow.locator("..").locator("..").locator("button", { hasText: "Cancelar" }).first()
+    // Caso a estrutura varie muito, vamos pegar o botão global
+    const fallbackCancel = page.locator("button", { hasText: "Cancelar" }).first()
     
-    const cancelOption = page.locator("text=Cancelar").first()
     if (await cancelOption.isVisible()) {
       await cancelOption.click()
-      
-      // Preencher o modal de cancelamento
-      const reasonInput = page.locator("textarea[name='reason'], input[name='reason']").first()
-      if (await reasonInput.isVisible()) {
-        await reasonInput.fill("Imprevisto de teste")
-      }
-      
-      const confirmCancelButton = page.locator("button:has-text('Cancelar Agendamento'), button:has-text('Confirmar Cancelamento')").first()
-      if (await confirmCancelButton.isVisible()) {
-        await confirmCancelButton.click()
-      }
+    } else {
+      await fallbackCancel.click()
     }
 
     // 4. Verificar se a UI reflete o status "Cancelado"
