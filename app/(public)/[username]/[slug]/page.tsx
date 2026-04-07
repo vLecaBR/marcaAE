@@ -5,47 +5,51 @@ import { cn } from "@/lib/utils"
 import type { Metadata } from "next"
 import { unstable_cache } from "next/cache"
 
-const getCachedEventTypeMeta = unstable_cache(
-  async (username: string, slug: string) => {
-    return prisma.eventType.findFirst({
-      where: { slug, isActive: true, user: { username } },
-      select: { title: true, description: true, user: { select: { name: true } } },
-    })
-  },
-  ["public-event-meta"],
-  { tags: ["event-types"], revalidate: 60 }
-)
+const getCachedEventTypeMeta = async (username: string, slug: string) => {
+  return unstable_cache(
+    async () => {
+      return prisma.eventType.findFirst({
+        where: { slug, isActive: true, user: { username } },
+        select: { title: true, description: true, user: { select: { name: true } } },
+      })
+    },
+    [`public-event-meta-${username}-${slug}`],
+    { tags: ["event-types"], revalidate: 60 }
+  )()
+}
 
-const getCachedEventType = unstable_cache(
-  async (username: string, slug: string) => {
-    return prisma.eventType.findFirst({
-      where: { slug, isActive: true, user: { username } },
-      select: {
-        id: true, title: true, slug: true, description: true,
-        duration: true, color: true, locationType: true,
-        price: true,
-        questions: { orderBy: { order: "asc" } },
-        requiresConfirm: true, beforeEventBuffer: true,
-        afterEventBuffer: true, bookingLimitDays: true,
-        user: {
-          select: {
-            id: true, name: true, image: true, username: true, timeZone: true, theme: true, brandColor: true,
-            schedules: {
-              where: { isDefault: true },
-              include: {
-                availabilities: true,
-                exceptions: true,
+const getCachedEventType = async (username: string, slug: string) => {
+  return unstable_cache(
+    async () => {
+      return prisma.eventType.findFirst({
+        where: { slug, isActive: true, user: { username } },
+        select: {
+          id: true, title: true, slug: true, description: true,
+          duration: true, color: true, locationType: true,
+          price: true,
+          questions: { orderBy: { order: "asc" } },
+          requiresConfirm: true, beforeEventBuffer: true,
+          afterEventBuffer: true, bookingLimitDays: true,
+          user: {
+            select: {
+              id: true, name: true, image: true, username: true, timeZone: true, theme: true, brandColor: true,
+              schedules: {
+                where: { isDefault: true },
+                include: {
+                  availabilities: true,
+                  exceptions: true,
+                },
+                take: 1,
               },
-              take: 1,
             },
           },
         },
-      },
-    })
-  },
-  ["public-event-type"],
-  { tags: ["event-types"], revalidate: 60 }
-)
+      })
+    },
+    [`public-event-type-${username}-${slug}`],
+    { tags: ["event-types"], revalidate: 60 }
+  )()
+}
 
 interface Props {
   params: Promise<{ username: string; slug: string }>

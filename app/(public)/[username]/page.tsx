@@ -6,39 +6,43 @@ import { Clock, MapPin, Video, Phone, Link as LinkIcon, Users, CalendarDays, Arr
 import type { Metadata } from "next"
 import { unstable_cache } from "next/cache"
 
-const getCachedUserMeta = unstable_cache(
-  async (username: string) => {
-    return prisma.user.findUnique({
-      where: { username },
-      select: { name: true, bio: true },
-    })
-  },
-  ["public-user-meta"],
-  { tags: ["user-profile"], revalidate: 60 }
-)
+const getCachedUserMeta = async (username: string) => {
+  return unstable_cache(
+    async () => {
+      return prisma.user.findUnique({
+        where: { username },
+        select: { name: true, bio: true },
+      })
+    },
+    [`public-user-meta-${username}`],
+    { tags: ["user-profile"], revalidate: 60 }
+  )()
+}
 
-const getCachedUser = unstable_cache(
-  async (username: string) => {
-    return prisma.user.findUnique({
-      where: { username },
-      select: {
-        name: true, bio: true, image: true, theme: true, brandColor: true,
-        eventTypes: {
-          where: { isActive: true },
-          orderBy: { createdAt: "asc" },
-          select: {
-            id: true, title: true, slug: true,
-            description: true, duration: true,
-            color: true, locationType: true,
-            price: true,
+const getCachedUser = async (username: string) => {
+  return unstable_cache(
+    async () => {
+      return prisma.user.findUnique({
+        where: { username },
+        select: {
+          name: true, bio: true, image: true, theme: true, brandColor: true,
+          eventTypes: {
+            where: { isActive: true },
+            orderBy: { createdAt: "asc" },
+            select: {
+              id: true, title: true, slug: true,
+              description: true, duration: true,
+              color: true, locationType: true,
+              price: true,
+            },
           },
         },
-      },
-    })
-  },
-  ["public-user-profile"],
-  { tags: ["user-profile"], revalidate: 60 }
-)
+      })
+    },
+    [`public-user-profile-${username}`],
+    { tags: ["user-profile"], revalidate: 60 }
+  )()
+}
 
 interface Props {
   params: Promise<{ username: string }>
