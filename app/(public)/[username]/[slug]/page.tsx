@@ -100,11 +100,7 @@ export default async function BookingPage({ params }: Props) {
     bookingLimitDays,
   })
 
-  // To prevent passing huge JSON structures with Dates, convert slots correctly or rely on the fact
-  // that Server Components can serialize plain objects. But Date objects might be tricky if they are deep.
-  // Actually, Server Components serialize Date objects properly.
-  // We'll just pass the grouped results.
-  const initialGroupedSlots = groupSlotsByDate(slots, eventType.user.timeZone)
+  // We only pass availableDates to avoid bloating the initial HTML payload with thousands of slots
   const initialAvailableDates = getAvailableDates(slots, eventType.user.timeZone)
 
   return (
@@ -142,7 +138,6 @@ export default async function BookingPage({ params }: Props) {
           brandColor: eventType.user.brandColor,
         }}
         schedule={scheduleData}
-        initialGroupedSlots={initialGroupedSlots}
         initialAvailableDates={initialAvailableDates}
       />
     </main>

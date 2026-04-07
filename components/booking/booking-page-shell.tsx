@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react"
 import { addDays, startOfDay } from "date-fns"
 import dynamic from "next/dynamic"
+import Image from "next/image"
 import { CalendarPicker } from "./calendar-picker"
-import { TimeSlotPicker } from "./time-slot-picker"
 import type { Slot } from "@/lib/scheduling/types"
 import { cn } from "@/lib/utils"
 
 const BookingForm = dynamic(() => import("./booking-form").then(m => m.BookingForm))
+const TimeSlotPicker = dynamic(() => import("./time-slot-picker").then(m => m.TimeSlotPicker))
 
 const COLOR_MAP: Record<string, string> = {
   SLATE: "bg-slate-500", ROSE: "bg-rose-500", ORANGE: "bg-orange-500",
@@ -45,16 +46,15 @@ interface Props {
       startTime: string | null; endTime: string | null
     }[]
   }
-  initialGroupedSlots: Record<string, Slot[]>
   initialAvailableDates: string[]
 }
 
-export function BookingPageShell({ eventType, owner, schedule, initialGroupedSlots, initialAvailableDates }: Props) {
+export function BookingPageShell({ eventType, owner, schedule, initialAvailableDates }: Props) {
   const [step, setStep] = useState<Step>("calendar")
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null)
   const [viewerTimeZone, setViewerTimeZone] = useState(owner.timeZone)
-  const [groupedSlots, setGroupedSlots] = useState(initialGroupedSlots)
+  const [groupedSlots, setGroupedSlots] = useState<Record<string, Slot[]>>({})
   const [availableDates, setAvailableDates] = useState(initialAvailableDates)
 
   useEffect(() => {
@@ -114,11 +114,12 @@ export function BookingPageShell({ eventType, owner, schedule, initialGroupedSlo
         {/* Header do evento */}
         <div className="mb-8 flex items-start gap-5">
           {owner.image ? (
-            <img
+            <Image
               src={owner.image}
               alt={owner.name ?? ""}
-              fetchPriority="high"
-              loading="eager"
+              width={56}
+              height={56}
+              priority={true}
               className={cn(
                 "h-14 w-14 rounded-full ring-2 shrink-0 object-cover",
                 owner.theme === "LIGHT" ? "ring-slate-200" : "ring-zinc-800"
@@ -197,15 +198,30 @@ export function BookingPageShell({ eventType, owner, schedule, initialGroupedSlo
                 />
               </div>
               <div className="p-6">
-                <TimeSlotPicker
-                  slots={slotsForSelectedDate}
-                  selectedDate={selectedDate}
-                  viewerTimeZone={viewerTimeZone}
-                  duration={eventType.duration}
-                  onSelectSlot={handleSelectSlot}
-                  eventTypeId={eventType.id}
-                  ownerId={owner.id}
-                />
+                {!selectedDate ? (
+                  <div className="flex h-full flex-col items-center justify-center py-12 text-center">
+                    <svg
+                      className="mb-3 h-10 w-10 text-zinc-700"
+                      fill="none" viewBox="0 0 24 24"
+                      stroke="currentColor" strokeWidth={1.25}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                    </svg>
+                    <p className="text-sm text-zinc-600">
+                      Selecione uma data para ver os horários disponíveis.
+                    </p>
+                  </div>
+                ) : (
+                  <TimeSlotPicker
+                    slots={slotsForSelectedDate}
+                    selectedDate={selectedDate}
+                    viewerTimeZone={viewerTimeZone}
+                    duration={eventType.duration}
+                    onSelectSlot={handleSelectSlot}
+                    eventTypeId={eventType.id}
+                    ownerId={owner.id}
+                  />
+                )}
               </div>
             </div>
           ) : (
