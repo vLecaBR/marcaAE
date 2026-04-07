@@ -164,9 +164,12 @@ jobs:
           AUTH_SECRET: "test-secret-never-use-in-prod"
           AUTH_GOOGLE_ID: "mock"
           AUTH_GOOGLE_SECRET: "mock"
+          NEXT_PUBLIC_APP_URL: "http://localhost:3000"
 
       - name: Seed Database for Lighthouse
-        run: npx prisma db seed
+        run: |
+          npx prisma migrate reset --force
+          npx tsx prisma/seed.ts
         env:
           DATABASE_URL: "postgresql://user:password@localhost:5432/testdb"
 
