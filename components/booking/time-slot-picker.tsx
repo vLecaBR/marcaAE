@@ -56,23 +56,6 @@ export function TimeSlotPicker({
     return () => { cancelled = true }
   }, [selectedDate, ownerId, eventTypeId, viewerTimeZone, slots])
 
-  if (!selectedDate) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center py-12 text-center">
-        <svg
-          className="mb-3 h-10 w-10 text-zinc-700"
-          fill="none" viewBox="0 0 24 24"
-          stroke="currentColor" strokeWidth={1.25}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-        </svg>
-        <p className="text-sm text-zinc-600">
-          Selecione uma data para ver os horários disponíveis.
-        </p>
-      </div>
-    )
-  }
-
   const dateLabel = format(new Date(selectedDate + "T12:00:00"), "EEEE, d 'de' MMMM", { locale: ptBR })
 
   return (

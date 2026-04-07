@@ -18,7 +18,7 @@ export function computeAvailableSlots(
   const slots: Slot[] = []
 
   // Limite máximo de dias à frente
-  const maxDate = input.bookingLimitDays
+  const maxDate = input.bookingLimitDays != null
     ? addMinutes(startOfDay(now), input.bookingLimitDays * 24 * 60)
     : null
 
@@ -33,8 +33,8 @@ export function computeAvailableSlots(
           const bufferedStart = addMinutes(b.startTime, -input.beforeBuffer)
           const bufferedEnd = addMinutes(b.endTime, input.afterBuffer)
           return (
-            isBefore(bufferedStart, window.end) &&
-            isAfter(bufferedEnd, window.start)
+            bufferedStart.getTime() < window.end.getTime() &&
+            bufferedEnd.getTime() > window.start.getTime()
           )
         })
         .map((b) => ({
@@ -60,16 +60,6 @@ export function computeAvailableSlots(
           slots.push({
             startUtc: slot.start,
             endUtc: slot.end,
-            startLocal: formatInTimeZone(
-              slot.start,
-              input.viewerTimeZone,
-              "yyyy-MM-dd'T'HH:mm:ssxxx"
-            ),
-            endLocal: formatInTimeZone(
-              slot.end,
-              input.viewerTimeZone,
-              "yyyy-MM-dd'T'HH:mm:ssxxx"
-            ),
             available: true,
           })
         }

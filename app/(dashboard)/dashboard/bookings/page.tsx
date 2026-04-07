@@ -31,9 +31,9 @@ export default async function BookingsPage() {
   })
 
   // Separa os bookings
-  const pending = bookings.filter(b => b.status === "PENDING" && b.startTime > new Date())
-  const upcoming = bookings.filter(b => b.status === "CONFIRMED" && b.startTime > new Date())
-  const past = bookings.filter(b => b.startTime <= new Date() || b.status === "CANCELLED")
+  const pending = bookings.filter((b: any) => b.status === "PENDING" && b.startTime > new Date())
+  const upcoming = bookings.filter((b: any) => b.status === "CONFIRMED" && b.startTime > new Date())
+  const past = bookings.filter((b: any) => b.startTime <= new Date() || b.status === "CANCELLED")
 
   return (
     <div className="space-y-8 pb-12">
@@ -57,7 +57,7 @@ export default async function BookingsPage() {
               Aguardando Aprovação ({pending.length})
             </h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {pending.map((booking) => (
+              {pending.map((booking: any) => (
                 <BookingCard key={booking.id} booking={booking} />
               ))}
             </div>
@@ -75,7 +75,7 @@ export default async function BookingsPage() {
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {upcoming.map((booking) => (
+              {upcoming.map((booking: any) => (
                 <BookingCard key={booking.id} booking={booking} />
               ))}
             </div>
@@ -87,7 +87,7 @@ export default async function BookingsPage() {
           <section className="space-y-4">
             <h2 className="text-lg font-semibold text-white">Histórico e Cancelados</h2>
             <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/40 divide-y divide-zinc-800/60">
-              {past.slice(0, 10).map((booking) => (
+              {past.slice(0, 10).map((booking: any) => (
                 <div key={booking.id} className="flex items-center justify-between p-4 hover:bg-zinc-800/30 transition-colors">
                   <div className="flex items-center gap-4">
                     <div className="hidden sm:flex h-12 w-12 flex-col items-center justify-center rounded-lg bg-zinc-950 border border-zinc-800 opacity-60">
@@ -114,7 +114,7 @@ export default async function BookingsPage() {
                       booking.status === "CANCELLED" ? "bg-rose-500/10 text-rose-400" :
                       "bg-zinc-800 text-zinc-500"
                     )}>
-                      {booking.status}
+                      {booking.status === "CANCELLED" ? "Cancelado" : booking.status === "CONFIRMED" ? "Confirmado" : "Pendente"}
                     </span>
                   </div>
                 </div>
