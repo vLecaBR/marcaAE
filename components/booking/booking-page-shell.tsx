@@ -2,13 +2,15 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { addDays, startOfDay } from "date-fns"
+import dynamic from "next/dynamic"
 import { CalendarPicker } from "./calendar-picker"
 import { TimeSlotPicker } from "./time-slot-picker"
-import { BookingForm } from "./booking-form"
 import { buildAvailableWindows } from "@/lib/scheduling/availability"
 import { computeAvailableSlots, groupSlotsByDate, getAvailableDates } from "@/lib/scheduling/slots"
 import type { Slot } from "@/lib/scheduling/types"
 import { cn } from "@/lib/utils"
+
+const BookingForm = dynamic(() => import("./booking-form").then(m => m.BookingForm))
 
 const COLOR_MAP: Record<string, string> = {
   SLATE: "bg-slate-500", ROSE: "bg-rose-500", ORANGE: "bg-orange-500",

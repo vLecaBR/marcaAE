@@ -60,16 +60,6 @@ export function computeAvailableSlots(
           slots.push({
             startUtc: slot.start,
             endUtc: slot.end,
-            startLocal: formatInTimeZone(
-              slot.start,
-              input.viewerTimeZone,
-              "yyyy-MM-dd'T'HH:mm:ssxxx"
-            ),
-            endLocal: formatInTimeZone(
-              slot.end,
-              input.viewerTimeZone,
-              "yyyy-MM-dd'T'HH:mm:ssxxx"
-            ),
             available: true,
           })
         }
