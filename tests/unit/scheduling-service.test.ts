@@ -80,7 +80,7 @@ describe("Scheduling Service", () => {
               startTime: "09:00",
               endTime: "17:00",
             }],
-            exceptions: []
+            exceptions: [{ date: new Date(), type: "BLOCKED", startTime: "12:00", endTime: "13:00" }]
           }]
         }
       } as any)
@@ -98,6 +98,19 @@ describe("Scheduling Service", () => {
       expect(res.success).toBe(true)
       expect(res.data).toBeDefined()
       expect(res.data?.eventType.title).toBe("Test Event")
+    })
+
+    it("deve retornar erro genérico em caso de falha no try-catch", async () => {
+      vi.mocked(prisma.eventType.findFirst).mockRejectedValueOnce(new Error("Database offline"))
+
+      const res = await getAvailableSlots({
+        username: "test",
+        eventSlug: "test-event",
+        viewerTimeZone: "UTC"
+      })
+
+      expect(res.success).toBe(false)
+      expect(res.error).toBe("Erro interno ao calcular disponibilidade.")
     })
   })
 })

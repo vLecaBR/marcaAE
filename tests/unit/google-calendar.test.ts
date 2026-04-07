@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { getGoogleCalendarBusySlots, createGoogleCalendarEvent } from "@/lib/google/calendar"
+import { getGoogleCalendarBusySlots, createGoogleCalendarEvent, deleteGoogleCalendarEvent } from "@/lib/google/calendar"
 import { prisma } from "@/lib/prisma"
 
 vi.mock("@/lib/prisma", () => ({
@@ -144,6 +144,82 @@ describe("Google Calendar Service", () => {
 
       expect(fetch).toHaveBeenCalled()
       expect(result).toEqual({ eventId: "google-event-id", meetLink: "http://meet.google.com/link" })
+    })
+
+    it("deve retornar null em caso de erro na API ao criar evento", async () => {
+      vi.mocked(prisma.account.findFirst).mockResolvedValueOnce({
+        id: "acc-1",
+        provider: "google",
+        access_token: "valid-token",
+        expires_at: Math.floor(Date.now() / 1000) + 3600
+      } as any)
+
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: false,
+        text: () => Promise.resolve("Bad Request")
+      } as any)
+
+      const result = await createGoogleCalendarEvent({
+        userId: "user-1",
+        title: "Test Event",
+        description: "Desc",
+        startTime: new Date(),
+        endTime: new Date(),
+        guestEmail: "guest@test.com",
+        guestName: "Guest",
+      })
+
+      expect(result).toBeNull()
+    })
+  })
+
+  describe("deleteGoogleCalendarEvent", () => {
+    it("deve retornar false se usuário não tiver conta do google", async () => {
+      vi.mocked(prisma.account.findFirst).mockResolvedValueOnce(null)
+      const result = await deleteGoogleCalendarEvent("user-1", "event-id")
+      expect(result).toBe(false)
+    })
+
+    it("deve retornar true se a deleção for bem sucedida (ou 404)", async () => {
+      vi.mocked(prisma.account.findFirst).mockResolvedValueOnce({
+        id: "acc-1",
+        provider: "google",
+        access_token: "valid-token",
+        expires_at: Math.floor(Date.now() / 1000) + 3600
+      } as any)
+
+      vi.mocked(fetch).mockResolvedValueOnce({ ok: true, status: 200 } as any)
+
+      const result = await deleteGoogleCalendarEvent("user-1", "event-id")
+      expect(result).toBe(true)
+    })
+
+    it("deve retornar true se a API retornar 404", async () => {
+      vi.mocked(prisma.account.findFirst).mockResolvedValueOnce({
+        id: "acc-1",
+        provider: "google",
+        access_token: "valid-token",
+        expires_at: Math.floor(Date.now() / 1000) + 3600
+      } as any)
+
+      vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 404 } as any)
+
+      const result = await deleteGoogleCalendarEvent("user-1", "event-id")
+      expect(result).toBe(true)
+    })
+
+    it("deve retornar false em caso de falha diferente de 404", async () => {
+      vi.mocked(prisma.account.findFirst).mockResolvedValueOnce({
+        id: "acc-1",
+        provider: "google",
+        access_token: "valid-token",
+        expires_at: Math.floor(Date.now() / 1000) + 3600
+      } as any)
+
+      vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 500 } as any)
+
+      const result = await deleteGoogleCalendarEvent("user-1", "event-id")
+      expect(result).toBe(false)
     })
   })
 })

@@ -18,7 +18,7 @@ export function computeAvailableSlots(
   const slots: Slot[] = []
 
   // Limite máximo de dias à frente
-  const maxDate = input.bookingLimitDays
+  const maxDate = input.bookingLimitDays != null
     ? addMinutes(startOfDay(now), input.bookingLimitDays * 24 * 60)
     : null
 

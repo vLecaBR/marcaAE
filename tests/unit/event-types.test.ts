@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { getEventTypesAction, upsertEventTypeAction } from "@/lib/actions/event-types"
+import { getEventTypesAction, upsertEventTypeAction, toggleEventTypeAction, deleteEventTypeAction } from "@/lib/actions/event-types"
 import { prisma } from "@/lib/prisma"
 
 const mockSession = { user: { id: "test-user-id" } }
@@ -117,6 +117,61 @@ describe("Event Types Server Actions", () => {
       expect(prisma.eventTypeQuestion.createMany).toHaveBeenCalled()
       
       expect(result).toEqual({ success: true, data: { id: "new-event", slug: "test-slug" } })
+    })
+  })
+
+  describe("toggleEventTypeAction", () => {
+    it("deve retornar erro se não autenticado", async () => {
+      // @ts-ignore
+      mockSession.user.id = null
+      const result = await toggleEventTypeAction("eventId", true)
+      expect(result).toEqual({ success: false, error: "Não autorizado." })
+      mockSession.user.id = "test-user-id"
+    })
+
+    it("deve retornar erro se o evento não for encontrado", async () => {
+      vi.mocked(prisma.eventType.findFirst).mockResolvedValueOnce(null)
+      const result = await toggleEventTypeAction("eventId", true)
+      expect(result).toEqual({ success: false, error: "Evento não encontrado." })
+    })
+
+    it("deve ativar ou desativar com sucesso", async () => {
+      vi.mocked(prisma.eventType.findFirst).mockResolvedValueOnce({ id: "eventId" } as any)
+      vi.mocked(prisma.eventType.update).mockResolvedValueOnce({} as any)
+
+      const result = await toggleEventTypeAction("eventId", false)
+      expect(prisma.eventType.update).toHaveBeenCalledWith({
+        where: { id: "eventId" },
+        data: { isActive: false },
+      })
+      expect(result).toEqual({ success: true, data: undefined })
+    })
+  })
+
+  describe("deleteEventTypeAction", () => {
+    it("deve retornar erro se não autenticado", async () => {
+      // @ts-ignore
+      mockSession.user.id = null
+      const result = await deleteEventTypeAction("eventId")
+      expect(result).toEqual({ success: false, error: "Não autorizado." })
+      mockSession.user.id = "test-user-id"
+    })
+
+    it("deve retornar erro se o evento não for encontrado", async () => {
+      vi.mocked(prisma.eventType.findFirst).mockResolvedValueOnce(null)
+      const result = await deleteEventTypeAction("eventId")
+      expect(result).toEqual({ success: false, error: "Evento não encontrado." })
+    })
+
+    it("deve deletar com sucesso", async () => {
+      vi.mocked(prisma.eventType.findFirst).mockResolvedValueOnce({ id: "eventId" } as any)
+      vi.mocked(prisma.eventType.delete).mockResolvedValueOnce({} as any)
+
+      const result = await deleteEventTypeAction("eventId")
+      expect(prisma.eventType.delete).toHaveBeenCalledWith({
+        where: { id: "eventId" },
+      })
+      expect(result).toEqual({ success: true, data: undefined })
     })
   })
 })
