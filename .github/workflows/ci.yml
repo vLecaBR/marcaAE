@@ -165,6 +165,11 @@ jobs:
           AUTH_GOOGLE_ID: "mock"
           AUTH_GOOGLE_SECRET: "mock"
 
+      - name: Seed Database for Lighthouse
+        run: npx prisma db seed
+        env:
+          DATABASE_URL: "postgresql://user:password@localhost:5432/testdb"
+
       - name: Run Lighthouse CI
         uses: treosh/lighthouse-ci-action@v12
         env:
