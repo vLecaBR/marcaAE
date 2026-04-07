@@ -109,7 +109,7 @@ export async function createBooking(
   const scheduleData: ScheduleData = {
     timeZone: schedule.timeZone,
     availabilities: schedule.availabilities,
-    exceptions: schedule.exceptions.map((ex) => ({
+    exceptions: schedule.exceptions.map((ex: any) => ({
       ...ex,
       type: ex.type as "BLOCKED" | "VACATION" | "OVERRIDE",
     })),
@@ -137,7 +137,7 @@ export async function createBooking(
 
   try {
     const booking = await prisma.$transaction(
-      async (tx) => {
+      async (tx: any) => {
         const requestedCount = input.recurringCount ?? 1
         const createdBookings = []
         const recurringEventId = requestedCount > 1 ? Math.random().toString(36).substring(2, 11) : null
@@ -149,10 +149,10 @@ export async function createBooking(
           const conflictingRows = await tx.$queryRaw<{ id: string }[]>`
             SELECT id FROM bookings
             WHERE
-              user_id   = ${input.ownerId}
+              "userId"   = ${input.ownerId}
               AND status IN ('CONFIRMED', 'PENDING')
-              AND start_time < ${currentEnd}::timestamptz
-              AND end_time   > ${currentStart}::timestamptz
+              AND "startTime" < ${currentEnd}::timestamptz
+              AND "endTime"   > ${currentStart}::timestamptz
             FOR UPDATE SKIP LOCKED
           `
 
