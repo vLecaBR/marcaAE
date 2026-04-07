@@ -1,7 +1,5 @@
-import { PrismaClient } from "@prisma/client"
+import { prisma } from "../lib/prisma"
 import { addDays, setHours, setMinutes } from "date-fns"
-
-const prisma = new PrismaClient()
 
 async function main() {
   console.log("Starting seed...")
