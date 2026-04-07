@@ -56,7 +56,7 @@ export async function upsertTeamAction(
     return { success: true, data: team }
   } else {
     // Criação
-    const team = await prisma.$transaction(async (tx) => {
+    const team = await prisma.$transaction(async (tx: any) => {
       const newTeam = await tx.team.create({
         data,
         select: { id: true, slug: true }

@@ -102,12 +102,12 @@ export async function getAvailableSlots(
     // 4. Monta o ScheduleData tipado
     const scheduleData: ScheduleData = {
       timeZone: schedule.timeZone,
-      availabilities: schedule.availabilities.map((a) => ({
+      availabilities: schedule.availabilities.map((a: any) => ({
         dayOfWeek: a.dayOfWeek,
         startTime: a.startTime,
         endTime: a.endTime,
       })),
-      exceptions: schedule.exceptions.map((ex) => ({
+      exceptions: schedule.exceptions.map((ex: any) => ({
         date: ex.date,
         type: ex.type as "BLOCKED" | "VACATION" | "OVERRIDE",
         startTime: ex.startTime,

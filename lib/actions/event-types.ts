@@ -68,7 +68,7 @@ export async function upsertEventTypeAction(
     return { success: false, error: "Você já tem um evento com este slug." }
   }
 
-  const eventType = await prisma.$transaction(async (tx) => {
+  const eventType = await prisma.$transaction(async (tx: any) => {
     const event = await tx.eventType.upsert({
       where: { id: id ?? "" },
       create: { ...data, userId: session.user.id },
