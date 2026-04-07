@@ -27,16 +27,15 @@ test.describe("Fluxo do Cliente (Agendamento Público)", () => {
     // 4. Preencher o formulário
     await expect(page.locator("text=Seus Dados")).toBeVisible()
     
-    await page.fill("input[name='guestName']", "Cliente de Teste E2E")
-    await page.fill("input[name='guestEmail']", "cliente.e2e@example.com")
+    await page.fill("input[name='name']", "Cliente de Teste E2E")
+    await page.fill("input[name='email']", "cliente.e2e@example.com")
     
     // 5. Submeter
     const submitButton = page.locator("button[type='submit']")
     await expect(submitButton).toBeVisible()
     await submitButton.click()
 
-    // 6. Verificar o redirecionamento para a página de sucesso
-    await expect(page).toHaveURL(/\/booking\/.+/)
+    // 6. Verificar a tela de sucesso (sem redirecionamento de URL)
     await expect(page.locator("text=Agendamento Confirmado")).toBeVisible()
   })
 })
