@@ -71,8 +71,8 @@ export function BookingForm({
       body: JSON.stringify({
         eventTypeId:   eventType.id,
         ownerId:       owner.id,
-        startTimeUtc:  slot.startUtc.toISOString(),
-        endTimeUtc:    slot.endUtc.toISOString(),
+        startTimeUtc:  new Date(slot.startUtc).toISOString(),
+        endTimeUtc:    new Date(slot.endUtc).toISOString(),
         guestTimeZone: viewerTimeZone,
         guestName:     data.name,
         guestEmail:    data.email,
