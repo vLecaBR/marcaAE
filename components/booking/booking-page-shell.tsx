@@ -1,15 +1,20 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { addDays, startOfDay } from "date-fns"
 import dynamic from "next/dynamic"
 import Image from "next/image"
-import { CalendarPicker } from "./calendar-picker"
 import type { Slot } from "@/lib/scheduling/types"
 import { cn } from "@/lib/utils"
 
-const BookingForm = dynamic(() => import("./booking-form").then(m => m.BookingForm))
-const TimeSlotPicker = dynamic(() => import("./time-slot-picker").then(m => m.TimeSlotPicker))
+const BookingForm = dynamic(() => import("./booking-form").then(m => m.BookingForm), {
+  loading: () => <div className="flex justify-center p-12"><div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-500 border-t-transparent" /></div>
+})
+const TimeSlotPicker = dynamic(() => import("./time-slot-picker").then(m => m.TimeSlotPicker), {
+  loading: () => <div className="flex justify-center p-12"><div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-500 border-t-transparent" /></div>
+})
+const CalendarPicker = dynamic(() => import("./calendar-picker").then(m => m.CalendarPicker), {
+  loading: () => <div className="h-[300px] w-full animate-pulse rounded-xl bg-zinc-200/50 dark:bg-zinc-800/50" />
+})
 
 const COLOR_MAP: Record<string, string> = {
   SLATE: "bg-slate-500", ROSE: "bg-rose-500", ORANGE: "bg-orange-500",
@@ -65,11 +70,12 @@ export function BookingPageShell({ eventType, owner, schedule, initialAvailableD
 
         // dynamically load heavy logic only if timezone differs
         Promise.all([
+          import("date-fns"),
           import("@/lib/scheduling/availability"),
           import("@/lib/scheduling/slots")
-        ]).then(([availability, slotsMod]) => {
-          const dateFrom = startOfDay(new Date())
-          const dateTo = addDays(dateFrom, eventType.bookingLimitDays ?? 60)
+        ]).then(([dateFns, availability, slotsMod]) => {
+          const dateFrom = dateFns.startOfDay(new Date())
+          const dateTo = dateFns.addDays(dateFrom, eventType.bookingLimitDays ?? 60)
 
           const windows = availability.buildAvailableWindows(schedule, dateFrom, dateTo)
           const slots = slotsMod.computeAvailableSlots(windows, [], {
