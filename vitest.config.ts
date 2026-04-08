@@ -1,6 +1,9 @@
 import { defineConfig } from "vitest/config"
 import react from "@vitejs/plugin-react"
 import { resolve } from "path"
+import dotenv from "dotenv"
+
+dotenv.config({ path: ".env.test" })
 
 export default defineConfig({
   plugins: [react()],
@@ -15,6 +18,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
+      include: ["lib/**", "actions/**"],
       exclude: [
         "node_modules/",
         "tests/e2e/",
@@ -23,6 +27,12 @@ export default defineConfig({
         ".next/",
         "components/ui/", // Geralmente ignoramos componentes da lib de UI puro (shadcn, radix)
       ],
+      thresholds: {
+        lines: 70,
+        functions: 70,
+        branches: 70,
+        statements: 70,
+      }
     },
   },
 })

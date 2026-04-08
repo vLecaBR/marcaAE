@@ -1,14 +1,20 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import { addDays, startOfDay } from "date-fns"
-import { CalendarPicker } from "./calendar-picker"
-import { TimeSlotPicker } from "./time-slot-picker"
-import { BookingForm } from "./booking-form"
-import { buildAvailableWindows } from "@/lib/scheduling/availability"
-import { computeAvailableSlots, groupSlotsByDate, getAvailableDates } from "@/lib/scheduling/slots"
+import { useState, useEffect } from "react"
+import dynamic from "next/dynamic"
+import Image from "next/image"
 import type { Slot } from "@/lib/scheduling/types"
 import { cn } from "@/lib/utils"
+
+const BookingForm = dynamic(() => import("./booking-form").then(m => m.BookingForm), {
+  loading: () => <div className="flex justify-center p-12"><div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-500 border-t-transparent" /></div>
+})
+const TimeSlotPicker = dynamic(() => import("./time-slot-picker").then(m => m.TimeSlotPicker), {
+  loading: () => <div className="flex justify-center p-12"><div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-500 border-t-transparent" /></div>
+})
+const CalendarPicker = dynamic(() => import("./calendar-picker").then(m => m.CalendarPicker), {
+  loading: () => <div className="h-[300px] w-full animate-pulse rounded-xl bg-zinc-200/50 dark:bg-zinc-800/50" />
+})
 
 const COLOR_MAP: Record<string, string> = {
   SLATE: "bg-slate-500", ROSE: "bg-rose-500", ORANGE: "bg-orange-500",
@@ -34,6 +40,8 @@ interface Props {
   owner: {
     id: string; name: string | null; image: string | null
     username: string; timeZone: string
+    theme?: string
+    brandColor?: string | null
   }
   schedule: {
     timeZone: string
@@ -43,41 +51,52 @@ interface Props {
       startTime: string | null; endTime: string | null
     }[]
   }
+  initialAvailableDates: string[]
 }
 
-export function BookingPageShell({ eventType, owner, schedule }: Props) {
+export function BookingPageShell({ eventType, owner, schedule, initialAvailableDates }: Props) {
   const [step, setStep] = useState<Step>("calendar")
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null)
+  const [viewerTimeZone, setViewerTimeZone] = useState(owner.timeZone)
+  const [groupedSlots, setGroupedSlots] = useState<Record<string, Slot[]>>({})
+  const [availableDates, setAvailableDates] = useState(initialAvailableDates)
 
-  // Detecta timezone do visitante
-  const viewerTimeZone = useMemo(
-    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
-    []
-  )
+  useEffect(() => {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+      if (tz !== owner.timeZone) {
+        setViewerTimeZone(tz)
 
-  // Calcula slots para os próximos N dias (pure computation, sem fetch)
-  const { groupedSlots, availableDates } = useMemo(() => {
-    const dateFrom = startOfDay(new Date())
-    const dateTo = addDays(dateFrom, eventType.bookingLimitDays ?? 60)
+        // dynamically load heavy logic only if timezone differs
+        Promise.all([
+          import("date-fns"),
+          import("@/lib/scheduling/availability"),
+          import("@/lib/scheduling/slots")
+        ]).then(([dateFns, availability, slotsMod]) => {
+          const dateFrom = dateFns.startOfDay(new Date())
+          const dateTo = dateFns.addDays(dateFrom, eventType.bookingLimitDays ?? 60)
 
-    const windows = buildAvailableWindows(schedule, dateFrom, dateTo)
-    const slots = computeAvailableSlots(windows, [], {
-      userId: owner.id,
-      eventDuration: eventType.duration,
-      beforeBuffer: eventType.beforeEventBuffer,
-      afterBuffer: eventType.afterEventBuffer,
-      dateFrom,
-      dateTo,
-      viewerTimeZone,
-      bookingLimitDays: eventType.bookingLimitDays ?? undefined,
-    })
+          const windows = availability.buildAvailableWindows(schedule, dateFrom, dateTo)
+          const slots = slotsMod.computeAvailableSlots(windows, [], {
+            userId: owner.id,
+            eventDuration: eventType.duration,
+            beforeBuffer: eventType.beforeEventBuffer,
+            afterBuffer: eventType.afterEventBuffer,
+            dateFrom,
+            dateTo,
+            viewerTimeZone: tz,
+            bookingLimitDays: eventType.bookingLimitDays ?? undefined,
+          })
 
-    return {
-      groupedSlots: groupSlotsByDate(slots, viewerTimeZone),
-      availableDates: getAvailableDates(slots, viewerTimeZone),
+          setGroupedSlots(slotsMod.groupSlotsByDate(slots, tz))
+          setAvailableDates(slotsMod.getAvailableDates(slots, tz))
+        })
+      }
+    } catch (e) {
+      // Ignora erro se Intl não estiver disponível
     }
-  }, [eventType, owner.id, schedule, viewerTimeZone])
+  }, [owner.timeZone, owner.id, eventType, schedule])
 
   const slotsForSelectedDate = selectedDate ? (groupedSlots[selectedDate] ?? []) : []
 
@@ -92,28 +111,46 @@ export function BookingPageShell({ eventType, owner, schedule }: Props) {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-start px-4 py-12">
+    <div className={cn(
+      "flex min-h-screen flex-col items-center justify-start px-4 py-12",
+      owner.theme === "LIGHT" ? "text-slate-900" : "text-white"
+    )}>
       <div className="w-full max-w-4xl">
 
         {/* Header do evento */}
         <div className="mb-8 flex items-start gap-5">
           {owner.image ? (
-            <img
+            <Image
               src={owner.image}
               alt={owner.name ?? ""}
-              className="h-14 w-14 rounded-full ring-2 ring-zinc-800 shrink-0"
+              width={56}
+              height={56}
+              priority={true}
+              className={cn(
+                "h-14 w-14 rounded-full ring-2 shrink-0 object-cover",
+                owner.theme === "LIGHT" ? "ring-slate-200" : "ring-zinc-800"
+              )}
             />
           ) : (
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-violet-600/20 text-lg font-semibold text-violet-400">
+            <div className={cn(
+              "flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-lg font-semibold",
+              owner.theme === "LIGHT" ? "bg-slate-200 text-slate-500" : "bg-violet-600/20 text-violet-400"
+            )}>
               {owner.name?.[0]?.toUpperCase() ?? "U"}
             </div>
           )}
           <div className="min-w-0">
-            <p className="text-sm text-zinc-500">{owner.name}</p>
-            <h1 className="mt-0.5 text-xl font-semibold text-white">
+            <p className={owner.theme === "LIGHT" ? "text-slate-500" : "text-zinc-500"}>{owner.name}</p>
+            <h1 className={cn(
+              "mt-0.5 text-xl font-semibold",
+              owner.theme === "LIGHT" ? "text-slate-900" : "text-white"
+            )}>
               {eventType.title}
             </h1>
-            <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-zinc-500">
+            <div className={cn(
+              "mt-2 flex flex-wrap items-center gap-3 text-xs",
+              owner.theme === "LIGHT" ? "text-slate-500" : "text-zinc-500"
+            )}>
               <span className="flex items-center gap-1.5">
                 <span className={cn("h-2 w-2 rounded-full", COLOR_MAP[eventType.color])} />
                 {eventType.duration} min
@@ -124,12 +161,15 @@ export function BookingPageShell({ eventType, owner, schedule }: Props) {
                   Confirmação manual
                 </span>
               )}
-              <span className="text-zinc-600">
+              <span className={owner.theme === "LIGHT" ? "text-slate-400" : "text-zinc-600"}>
                 Seu fuso: {viewerTimeZone}
               </span>
             </div>
             {eventType.description && (
-              <p className="mt-3 text-sm text-zinc-400 max-w-lg">
+              <p className={cn(
+                "mt-3 text-sm max-w-lg",
+                owner.theme === "LIGHT" ? "text-slate-600" : "text-zinc-400"
+              )}>
                 {eventType.description}
               </p>
             )}
@@ -137,11 +177,20 @@ export function BookingPageShell({ eventType, owner, schedule }: Props) {
         </div>
 
         {/* Painel principal */}
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 overflow-hidden">
+        <div className={cn(
+          "rounded-2xl border overflow-hidden transition-all",
+          owner.theme === "LIGHT" ? "border-slate-200 bg-white shadow-sm" : "border-zinc-800 bg-zinc-900/40"
+        )}>
           {step === "calendar" ? (
             <div className="grid lg:grid-cols-[1fr_300px]">
-              <div className="border-b border-zinc-800 p-6 lg:border-b-0 lg:border-r">
-                <p className="mb-5 text-sm font-medium text-zinc-300">
+              <div className={cn(
+                "border-b p-6 lg:border-b-0 lg:border-r",
+                owner.theme === "LIGHT" ? "border-slate-200" : "border-zinc-800"
+              )}>
+                <p className={cn(
+                  "mb-5 text-sm font-medium",
+                  owner.theme === "LIGHT" ? "text-slate-700" : "text-zinc-300"
+                )}>
                   Selecione uma data
                 </p>
                 <CalendarPicker
@@ -155,15 +204,30 @@ export function BookingPageShell({ eventType, owner, schedule }: Props) {
                 />
               </div>
               <div className="p-6">
-                <TimeSlotPicker
-                  slots={slotsForSelectedDate}
-                  selectedDate={selectedDate}
-                  viewerTimeZone={viewerTimeZone}
-                  duration={eventType.duration}
-                  onSelectSlot={handleSelectSlot}
-                  eventTypeId={eventType.id}
-                  ownerId={owner.id}
-                />
+                {!selectedDate ? (
+                  <div className="flex h-full flex-col items-center justify-center py-12 text-center">
+                    <svg
+                      className="mb-3 h-10 w-10 text-zinc-700"
+                      fill="none" viewBox="0 0 24 24"
+                      stroke="currentColor" strokeWidth={1.25}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                    </svg>
+                    <p className="text-sm text-zinc-600">
+                      Selecione uma data para ver os horários disponíveis.
+                    </p>
+                  </div>
+                ) : (
+                  <TimeSlotPicker
+                    slots={slotsForSelectedDate}
+                    selectedDate={selectedDate}
+                    viewerTimeZone={viewerTimeZone}
+                    duration={eventType.duration}
+                    onSelectSlot={handleSelectSlot}
+                    eventTypeId={eventType.id}
+                    ownerId={owner.id}
+                  />
+                )}
               </div>
             </div>
           ) : (
@@ -177,9 +241,12 @@ export function BookingPageShell({ eventType, owner, schedule }: Props) {
           )}
         </div>
 
-        <p className="mt-8 text-center text-xs text-zinc-700">
+        <p className={cn(
+          "mt-8 text-center text-xs",
+          owner.theme === "LIGHT" ? "text-slate-400" : "text-zinc-700"
+        )}>
           Agendamento via{" "}
-          <span className="text-zinc-500 font-medium">People OS</span>
+          <span className={owner.theme === "LIGHT" ? "text-slate-500 font-medium" : "text-zinc-500 font-medium"}>People OS</span>
         </p>
       </div>
     </div>

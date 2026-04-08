@@ -23,8 +23,6 @@ export interface SlotInput {
 export interface Slot {
   startUtc: Date
   endUtc: Date
-  startLocal: string   // ISO string no timezone do viewer
-  endLocal: string
   available: boolean
 }
 

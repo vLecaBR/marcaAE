@@ -25,7 +25,16 @@ model User {
   timeZone      String    @default("America/Sao_Paulo")
   locale        String    @default("pt-BR")
   onboarded     Boolean   @default(false)
-  createdAt     DateTime  @default(now())
+  
+  // Customização de Marca
+  theme         Theme     @default(DARK)
+  brandColor    String?   @default("#7c3aed") // violet-600 default
+
+  // Recorrência
+  recurringEventId String? // ID do grupo de eventos (para repetições)
+  recurringIndex   Int?    // Número da repetição (ex: 1, 2, 3...)
+
+  createdAt DateTime @default(now())
   updatedAt     DateTime  @updatedAt
 
   accounts          Account[]
@@ -83,6 +92,12 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
+enum Theme {
+  DARK
+  LIGHT
+  SYSTEM
+}
+
 // ─────────────────────────────────────────────
 // DOMAIN — Teams
 // ─────────────────────────────────────────────
@@ -93,11 +108,14 @@ model Team {
   slug        String   @unique
   description String?  @db.Text
   logo        String?
+  theme       Theme    @default(DARK)
+  brandColor  String?  @default("#7c3aed")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   members    TeamMember[]
   eventTypes EventType[]
+  subscription Subscription?
 
   @@map("teams")
 }
@@ -326,6 +344,10 @@ model Booking {
   paymentStatus    PaymentStatus @default(UNPAID)
   paymentReference String?
 
+  // Recorrência
+  recurringEventId String? // ID do grupo de eventos (para repetições)
+  recurringIndex   Int?    // Número da repetição (ex: 1, 2, 3...)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -372,4 +394,25 @@ model BookingResponse {
 
   @@index([bookingId])
   @@map("booking_responses")
+}
+
+// ─────────────────────────────────────────────
+// DOMAIN — Subscriptions (B2B SaaS)
+// ─────────────────────────────────────────────
+
+model Subscription {
+  id                     String    @id @default(cuid())
+  teamId                 String    @unique
+  stripeCustomerId       String    @unique
+  stripeSubscriptionId   String?   @unique
+  stripePriceId          String?
+  stripeCurrentPeriodEnd DateTime?
+  status                 String    @default("active") // active, past_due, canceled, unpaid
+  
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("subscriptions")
 }

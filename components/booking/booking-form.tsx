@@ -16,6 +16,7 @@ const bookingFormSchema = z.object({
   phone: z.string().optional(),
   notes: z.string().max(500).optional(),
   responses: z.record(z.string(), z.string()).optional(),
+  recurringCount: z.number().int().min(1).max(52).optional(),
 })
 
 type BookingFormInput = z.infer<typeof bookingFormSchema>
@@ -70,14 +71,15 @@ export function BookingForm({
       body: JSON.stringify({
         eventTypeId:   eventType.id,
         ownerId:       owner.id,
-        startTimeUtc:  slot.startUtc.toISOString(),
-        endTimeUtc:    slot.endUtc.toISOString(),
+        startTimeUtc:  new Date(slot.startUtc).toISOString(),
+        endTimeUtc:    new Date(slot.endUtc).toISOString(),
         guestTimeZone: viewerTimeZone,
         guestName:     data.name,
         guestEmail:    data.email,
         guestPhone:    data.phone,
         guestNotes:    data.notes,
         responses:     data.responses ? Object.entries(data.responses).map(([questionId, answer]) => ({ questionId, answer })) : [],
+        recurringCount: data.recurringCount ?? 1,
       }),
     })
 
@@ -86,7 +88,7 @@ export function BookingForm({
     if (res.status === 409) {
       setResult({ status: "conflict" })
     } else if (!res.ok) {
-      setResult({ status: "error", message: json.error ?? "Erro ao agendar." })
+      setResult({ status: "error", message: json.message ?? json.error ?? "Erro ao agendar." })
     } else {
       setResult({
         status: "success",

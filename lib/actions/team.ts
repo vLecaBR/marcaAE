@@ -4,6 +4,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { teamSchema, inviteMemberSchema, type TeamInput, type InviteMemberInput } from "@/lib/validators/team"
 import { revalidatePath } from "next/cache"
+import { mapPrismaError } from "@/lib/errors"
 
 type ActionResult<T = void> =
   | { success: true; data: T }
@@ -55,7 +56,7 @@ export async function upsertTeamAction(
     return { success: true, data: team }
   } else {
     // Criação
-    const team = await prisma.$transaction(async (tx) => {
+    const team = await prisma.$transaction(async (tx: any) => {
       const newTeam = await tx.team.create({
         data,
         select: { id: true, slug: true }
@@ -127,10 +128,11 @@ export async function inviteTeamMemberAction(
     revalidatePath(`/dashboard/teams/${teamId}`)
     return { success: true, data: undefined }
   } catch (err: unknown) {
-    if (typeof err === "object" && err !== null && "code" in err && (err as { code: string }).code === "P2002") {
+    const message = mapPrismaError(err, "Erro ao adicionar membro.")
+    if (message === "Registro já existente. Este valor já está em uso.") {
       return { success: false, error: "Este usuário já está na equipe." }
     }
-    return { success: false, error: "Erro ao adicionar membro." }
+    return { success: false, error: message }
   }
 }
 
