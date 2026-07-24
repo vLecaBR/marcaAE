@@ -1,6 +1,7 @@
 using System.Data;
 using MarcaAi.Application.Common.Interfaces;
 using MarcaAi.Application.Features.Bookings;
+using MarcaAi.Application.Scheduling;
 using MarcaAi.Domain.Entities;
 using MarcaAi.Domain.Enums;
 using MarcaAi.Infrastructure.Persistence;
@@ -38,6 +39,26 @@ public sealed class BookingService(ApplicationDbContext db, IBookingConcurrencyG
         var requestedMinutes = (int)Math.Round((endUtc - startUtc).TotalMinutes);
         if (requestedMinutes != eventType.Duration)
             return CreateBookingResult.InvalidDuration(eventType.Duration);
+
+        // Validação de disponibilidade: o horário precisa cair numa janela da agenda.
+        var schedule = await db.Schedules.AsNoTracking()
+            .Include(s => s.Availabilities)
+            .Include(s => s.Exceptions)
+            .FirstOrDefaultAsync(s => s.UserId == request.OwnerId && s.IsDefault, cancellationToken);
+        if (schedule is null)
+            return CreateBookingResult.EventNotFound();
+
+        var scheduleData = new ScheduleData(
+            schedule.TimeZone,
+            schedule.Availabilities.Select(a => new AvailabilityRule(a.DayOfWeek, a.StartTime, a.EndTime)).ToList(),
+            schedule.Exceptions.Select(x => new ScheduleExceptionData(x.Date, x.Type.ToString(), x.StartTime, x.EndTime)).ToList());
+
+        var windows = AvailabilityCalculator.BuildAvailableWindows(
+            scheduleData, startUtc.Date.AddDays(-1), startUtc.Date.AddDays(1).AddSeconds(-1));
+
+        var fitsWindow = windows.Any(d => d.Windows.Any(w => startUtc >= w.Start && endUtc <= w.End));
+        if (!fitsWindow)
+            return CreateBookingResult.Unavailable();
 
         // Transação explícita no isolamento padrão (Read Committed).
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);

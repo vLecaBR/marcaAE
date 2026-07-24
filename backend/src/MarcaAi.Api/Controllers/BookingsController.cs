@@ -28,6 +28,8 @@ public sealed class BookingsController(IBookingService bookings) : ControllerBas
                 Problem(statusCode: StatusCodes.Status404NotFound, detail: result.Message),
             BookingOutcome.InvalidDuration =>
                 Problem(statusCode: StatusCodes.Status422UnprocessableEntity, detail: result.Message),
+            BookingOutcome.Unavailable =>
+                Problem(statusCode: StatusCodes.Status422UnprocessableEntity, detail: result.Message),
             BookingOutcome.Conflict =>
                 Problem(statusCode: StatusCodes.Status409Conflict, detail: result.Message),
             _ => Problem(statusCode: StatusCodes.Status500InternalServerError),

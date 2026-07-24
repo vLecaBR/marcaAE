@@ -5,6 +5,7 @@ using MarcaAi.Infrastructure.Identity;
 using MarcaAi.Infrastructure.Persistence;
 using MarcaAi.Infrastructure.Persistence.Concurrency;
 using MarcaAi.Infrastructure.Persistence.Interceptors;
+using MarcaAi.Infrastructure.Scheduling;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -55,6 +56,7 @@ public static class DependencyInjection
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<ApplicationDbContext>());
         services.AddScoped<IBookingConcurrencyGuard, BookingConcurrencyGuard>();
         services.AddScoped<IBookingService, BookingService>();
+        services.AddScoped<IAvailabilityService, AvailabilityService>();
         services.AddScoped<IUserProvisioning, UserProvisioning>();
         services.AddScoped<IMagicLinkSender, LoggingMagicLinkSender>();
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
