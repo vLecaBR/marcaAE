@@ -14,7 +14,7 @@ namespace MarcaAi.Infrastructure.Scheduling;
 /// Fora do escopo desta fatia: FreeBusy do Google Calendar (será unido aos conflitos
 /// quando o Google for reativado).
 /// </summary>
-public sealed class AvailabilityService(ApplicationDbContext db) : IAvailabilityService
+public sealed class AvailabilityService(ApplicationDbContext db, IGoogleCalendarService google) : IAvailabilityService
 {
     public async Task<SlotsResult?> GetSlotsForDateAsync(
         string ownerId, string eventTypeId, DateOnly date, string viewerTimeZone,
@@ -49,13 +49,19 @@ public sealed class AvailabilityService(ApplicationDbContext db) : IAvailability
             schedule.Exceptions
                 .Select(x => new ScheduleExceptionData(x.Date, x.Type.ToString(), x.StartTime, x.EndTime)).ToList());
 
+        // Une os agendamentos internos com os horários ocupados do Google Calendar (FreeBusy).
+        var googleBusy = await google.GetBusySlotsAsync(ownerId, fromUtc, toUtc, cancellationToken);
+        var conflicts = bookings
+            .Concat(googleBusy.Select(g => new BookingConflict(g.Start, g.End)))
+            .ToList();
+
         var windows = AvailabilityCalculator.BuildAvailableWindows(scheduleData, fromUtc, toUtc);
 
         var input = new SlotInput(
             eventType.Duration, eventType.BeforeEventBuffer, eventType.AfterEventBuffer,
             fromUtc, toUtc, viewerTimeZone, eventType.BookingLimitDays);
 
-        var slots = SlotCalculator.ComputeAvailableSlots(windows, bookings, input);
+        var slots = SlotCalculator.ComputeAvailableSlots(windows, conflicts, input);
 
         var grouped = SlotCalculator.GroupByDate(slots, viewerTimeZone);
         var key = date.ToString("yyyy-MM-dd");

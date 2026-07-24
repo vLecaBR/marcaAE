@@ -19,6 +19,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. MVC / OpenAPI / ProblemDetails (RFC 7807 para todos os erros).
 // ─────────────────────────────────────────────────────────────────────────────
+builder.Services.AddScoped<MarcaAi.Api.Auth.AuthSessionWriter>();
 builder.Services.AddControllers()
     .AddJsonOptions(o =>
         o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
@@ -118,6 +119,7 @@ if (!string.IsNullOrWhiteSpace(googleId) && !string.IsNullOrWhiteSpace(googleSec
         options.SaveTokens = true;
         options.Scope.Add("https://www.googleapis.com/auth/calendar.readonly");
         options.Scope.Add("https://www.googleapis.com/auth/calendar.events");
+        options.AdditionalAuthorizationParameters["prompt"] = "consent";
     });
 }
 

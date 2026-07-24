@@ -1,5 +1,5 @@
-using System.Security.Claims;
 using System.Security.Cryptography;
+using MarcaAi.Api.Auth;
 using MarcaAi.Application.Common.Interfaces;
 using MarcaAi.Application.Features.Auth;
 using MarcaAi.Domain.Entities;
@@ -17,19 +17,18 @@ public sealed class AuthController(
     IUserProvisioning provisioning,
     IMagicLinkSender magicLinkSender,
     IJwtTokenService tokens,
+    AuthSessionWriter session,
     IConfiguration config) : ControllerBase
 {
     public sealed record MagicLinkRequest(string Email);
 
-    private string AccessCookie => config["Jwt:CookieName"] ?? "marcaai_at";
     private string RefreshCookie => config["Jwt:RefreshCookieName"] ?? "marcaai_rt";
     private static readonly TimeSpan LinkTtl = TimeSpan.FromMinutes(15);
 
     /// <summary>Solicita um magic link. Sempre responde 200 (não revela se o e-mail existe).</summary>
     [AllowAnonymous]
     [HttpPost("magic-link/request")]
-    public async Task<IActionResult> RequestMagicLink(
-        [FromBody] MagicLinkRequest body, CancellationToken ct)
+    public async Task<IActionResult> RequestMagicLink([FromBody] MagicLinkRequest body, CancellationToken ct)
     {
         var email = body.Email?.Trim().ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
@@ -66,7 +65,7 @@ public sealed class AuthController(
         await db.SaveChangesAsync(ct);
 
         var user = await provisioning.FindOrCreateByEmailAsync(vt.Identifier, ct);
-        IssueCookies(user);
+        session.Issue(HttpContext, user);
         return Ok(ToMe(user));
     }
 
@@ -84,7 +83,7 @@ public sealed class AuthController(
         if (user is null)
             return Problem(statusCode: StatusCodes.Status401Unauthorized, detail: "Usuário não encontrado.");
 
-        IssueCookies(user); // re-emite ambos (rotação)
+        session.Issue(HttpContext, user); // re-emite ambos (rotação)
         return Ok(ToMe(user));
     }
 
@@ -110,29 +109,9 @@ public sealed class AuthController(
     [HttpPost("logout")]
     public IActionResult Logout()
     {
-        Response.Cookies.Delete(AccessCookie, BaseCookie());
-        Response.Cookies.Delete(RefreshCookie, BaseCookie("/api/v1/auth"));
+        session.Clear(HttpContext);
         return NoContent();
     }
-
-    // ── helpers ───────────────────────────────────────────────────────────────
-
-    private void IssueCookies(User user)
-    {
-        var t = tokens.Issue(user);
-        Response.Cookies.Append(AccessCookie, t.AccessToken, BaseCookie(expires: t.AccessExpiresAt));
-        Response.Cookies.Append(RefreshCookie, t.RefreshToken, BaseCookie("/api/v1/auth", t.RefreshExpiresAt));
-    }
-
-    private CookieOptions BaseCookie(string path = "/", DateTimeOffset? expires = null) => new()
-    {
-        HttpOnly = true,
-        // Secure segue o protocolo: em produção (https) é sempre true; em dev http fica false p/ testar.
-        Secure = Request.IsHttps,
-        SameSite = SameSiteMode.Strict,
-        Path = path,
-        Expires = expires,
-    };
 
     private static MeDto ToMe(User u) => new()
     {

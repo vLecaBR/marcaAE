@@ -9,7 +9,8 @@ public sealed record BookingConfirmationDto(
     DateTimeOffset EndTime,
     string Status,
     bool RequiresConfirm,
-    string EventTitle);
+    string EventTitle,
+    string? MeetingUrl);
 
 public sealed record CreateBookingResult(
     BookingOutcome Outcome,

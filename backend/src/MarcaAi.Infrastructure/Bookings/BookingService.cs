@@ -1,6 +1,7 @@
 using System.Data;
 using MarcaAi.Application.Common.Interfaces;
 using MarcaAi.Application.Features.Bookings;
+using MarcaAi.Application.Features.Google;
 using MarcaAi.Application.Scheduling;
 using MarcaAi.Domain.Entities;
 using MarcaAi.Domain.Enums;
@@ -19,7 +20,10 @@ namespace MarcaAi.Infrastructure.Bookings;
 /// Fora do escopo desta fatia: PIX, Google Calendar, e-mail/WhatsApp e recorrência
 /// (serão adicionados como camadas seguintes).
 /// </summary>
-public sealed class BookingService(ApplicationDbContext db, IBookingConcurrencyGuard guard) : IBookingService
+public sealed class BookingService(
+    ApplicationDbContext db,
+    IBookingConcurrencyGuard guard,
+    IGoogleCalendarService google) : IBookingService
 {
     public async Task<CreateBookingResult> CreateAsync(
         CreateBookingRequest request, CancellationToken cancellationToken = default)
@@ -60,16 +64,6 @@ public sealed class BookingService(ApplicationDbContext db, IBookingConcurrencyG
         if (!fitsWindow)
             return CreateBookingResult.Unavailable();
 
-        // Transação explícita no isolamento padrão (Read Committed).
-        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
-
-        // Trava pessimista: bloqueia linhas concorrentes (SKIP LOCKED) antes de inserir.
-        if (await guard.HasConflictAsync(request.OwnerId, startUtc, endUtc, cancellationToken))
-        {
-            await tx.RollbackAsync(cancellationToken);
-            return CreateBookingResult.Conflict();
-        }
-
         var status = eventType.RequiresConfirm ? BookingStatus.PENDING : BookingStatus.CONFIRMED;
 
         var booking = new Domain.Entities.Booking
@@ -87,9 +81,52 @@ public sealed class BookingService(ApplicationDbContext db, IBookingConcurrencyG
             PaymentStatus = PaymentStatus.UNPAID,
         };
 
-        db.Bookings.Add(booking);
-        await db.SaveChangesAsync(cancellationToken);
-        await tx.CommitAsync(cancellationToken);
+        // Transação explícita (Read Committed) — escopo FECHADO antes de qualquer chamada externa,
+        // para o refresh de token do Google não colidir com a transação já commitada.
+        await using (var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken))
+        {
+            // Trava pessimista SKIP LOCKED antes de inserir.
+            if (await guard.HasConflictAsync(request.OwnerId, startUtc, endUtc, cancellationToken))
+            {
+                await tx.RollbackAsync(cancellationToken);
+                return CreateBookingResult.Conflict();
+            }
+
+            db.Bookings.Add(booking);
+            await db.SaveChangesAsync(cancellationToken);
+            await tx.CommitAsync(cancellationToken);
+        }
+
+        // ── Google Calendar (best-effort, fora da transação) ─────────────────
+        // Se o Google falhar, NÃO desfazemos a consulta (não pode se perder). Apenas logamos.
+        string? meetingUrl = eventType.LocationValue;
+        if (status == BookingStatus.CONFIRMED)
+        {
+            try
+            {
+                var ev = await google.CreateEventAsync(new CreateGoogleEventInput(
+                    UserId: request.OwnerId,
+                    Title: $"{eventType.Title} com {request.GuestName}",
+                    Description: $"Agendamento via MarcaAí\nPaciente: {request.GuestName} ({request.GuestEmail})\nObservações: {request.GuestNotes ?? "—"}",
+                    StartUtc: startUtc,
+                    EndUtc: endUtc,
+                    GuestName: request.GuestName,
+                    GuestEmail: request.GuestEmail,
+                    CreateMeetLink: eventType.LocationType == LocationType.GOOGLE_MEET), cancellationToken);
+
+                if (ev is not null)
+                {
+                    booking.MeetingId = ev.EventId;
+                    booking.MeetingUrl = ev.MeetLink ?? meetingUrl;
+                    meetingUrl = booking.MeetingUrl;
+                    await db.SaveChangesAsync(cancellationToken);
+                }
+            }
+            catch
+            {
+                // best-effort — a consulta permanece criada mesmo se o Google falhar.
+            }
+        }
 
         return CreateBookingResult.Success(new BookingConfirmationDto(
             booking.Uid,
@@ -97,6 +134,7 @@ public sealed class BookingService(ApplicationDbContext db, IBookingConcurrencyG
             booking.EndTime,
             status.ToString(),
             eventType.RequiresConfirm,
-            eventType.Title));
+            eventType.Title,
+            meetingUrl));
     }
 }
