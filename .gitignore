@@ -49,3 +49,6 @@ spec
 /test-results
 /.last-run.json
 report.json
+
+# Manter o template de variáveis versionado (a regra .env* acima o ignoraria)
+!.env.example

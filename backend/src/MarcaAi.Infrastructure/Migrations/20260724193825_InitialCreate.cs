@@ -1,4 +1,5 @@
 ﻿using System;
+using MarcaAi.Domain.Enums;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -12,14 +13,14 @@ namespace MarcaAi.Infrastructure.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AlterDatabase()
-                .Annotation("Npgsql:Enum:BookingStatus", "PENDING,CONFIRMED,CANCELLED,RESCHEDULED,NO_SHOW")
-                .Annotation("Npgsql:Enum:CanceledBy", "OWNER,GUEST,SYSTEM")
-                .Annotation("Npgsql:Enum:EventTypeColor", "SLATE,ROSE,ORANGE,AMBER,EMERALD,TEAL,CYAN,VIOLET,FUCHSIA")
-                .Annotation("Npgsql:Enum:ExceptionType", "BLOCKED,VACATION,OVERRIDE")
-                .Annotation("Npgsql:Enum:LocationType", "GOOGLE_MEET,ZOOM,TEAMS,PHONE,IN_PERSON,CUSTOM")
-                .Annotation("Npgsql:Enum:PaymentStatus", "UNPAID,PAID,REFUNDED")
-                .Annotation("Npgsql:Enum:QuestionType", "TEXT,TEXTAREA,SELECT,CHECKBOX,PHONE")
-                .Annotation("Npgsql:Enum:TeamRole", "OWNER,ADMIN,MEMBER")
+                .Annotation("Npgsql:Enum:BookingStatus", "CANCELLED,CONFIRMED,NO_SHOW,PENDING,RESCHEDULED")
+                .Annotation("Npgsql:Enum:CanceledBy", "GUEST,OWNER,SYSTEM")
+                .Annotation("Npgsql:Enum:EventTypeColor", "AMBER,CYAN,EMERALD,FUCHSIA,ORANGE,ROSE,SLATE,TEAL,VIOLET")
+                .Annotation("Npgsql:Enum:ExceptionType", "BLOCKED,OVERRIDE,VACATION")
+                .Annotation("Npgsql:Enum:LocationType", "CUSTOM,GOOGLE_MEET,IN_PERSON,PHONE,TEAMS,ZOOM")
+                .Annotation("Npgsql:Enum:PaymentStatus", "PAID,REFUNDED,UNPAID")
+                .Annotation("Npgsql:Enum:QuestionType", "CHECKBOX,PHONE,SELECT,TEXT,TEXTAREA")
+                .Annotation("Npgsql:Enum:TeamRole", "ADMIN,MEMBER,OWNER")
                 .Annotation("Npgsql:Enum:Theme", "DARK,LIGHT,SYSTEM");
 
             migrationBuilder.CreateTable(
@@ -31,7 +32,7 @@ namespace MarcaAi.Infrastructure.Migrations
                     slug = table.Column<string>(type: "text", nullable: false),
                     description = table.Column<string>(type: "text", nullable: true),
                     logo = table.Column<string>(type: "text", nullable: true),
-                    theme = table.Column<int>(type: "integer", nullable: false),
+                    theme = table.Column<Theme>(type: "\"Theme\"", nullable: false),
                     brandColor = table.Column<string>(type: "text", nullable: true),
                     createdAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     updatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
@@ -55,7 +56,7 @@ namespace MarcaAi.Infrastructure.Migrations
                     timeZone = table.Column<string>(type: "text", nullable: false),
                     locale = table.Column<string>(type: "text", nullable: false),
                     onboarded = table.Column<bool>(type: "boolean", nullable: false),
-                    theme = table.Column<int>(type: "integer", nullable: false),
+                    theme = table.Column<Theme>(type: "\"Theme\"", nullable: false),
                     brandColor = table.Column<string>(type: "text", nullable: true),
                     recurringEventId = table.Column<string>(type: "text", nullable: true),
                     recurringIndex = table.Column<int>(type: "integer", nullable: true),
@@ -143,13 +144,13 @@ namespace MarcaAi.Infrastructure.Migrations
                     slug = table.Column<string>(type: "text", nullable: false),
                     description = table.Column<string>(type: "text", nullable: true),
                     duration = table.Column<int>(type: "integer", nullable: false),
-                    color = table.Column<int>(type: "integer", nullable: false),
+                    color = table.Column<EventTypeColor>(type: "\"EventTypeColor\"", nullable: false),
                     isActive = table.Column<bool>(type: "boolean", nullable: false),
                     requiresConfirm = table.Column<bool>(type: "boolean", nullable: false),
                     beforeEventBuffer = table.Column<int>(type: "integer", nullable: false),
                     afterEventBuffer = table.Column<int>(type: "integer", nullable: false),
                     bookingLimitDays = table.Column<int>(type: "integer", nullable: true),
-                    locationType = table.Column<int>(type: "integer", nullable: false),
+                    locationType = table.Column<LocationType>(type: "\"LocationType\"", nullable: false),
                     locationValue = table.Column<string>(type: "text", nullable: true),
                     price = table.Column<int>(type: "integer", nullable: true),
                     currency = table.Column<string>(type: "text", nullable: false),
@@ -224,7 +225,7 @@ namespace MarcaAi.Infrastructure.Migrations
                     id = table.Column<string>(type: "text", nullable: false),
                     teamId = table.Column<string>(type: "text", nullable: false),
                     userId = table.Column<string>(type: "text", nullable: false),
-                    role = table.Column<int>(type: "integer", nullable: false),
+                    role = table.Column<TeamRole>(type: "\"TeamRole\"", nullable: false),
                     createdAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     updatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
@@ -260,14 +261,14 @@ namespace MarcaAi.Infrastructure.Migrations
                     startTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     endTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     guestTimeZone = table.Column<string>(type: "text", nullable: false),
-                    status = table.Column<int>(type: "integer", nullable: false),
+                    status = table.Column<BookingStatus>(type: "\"BookingStatus\"", nullable: false),
                     cancelReason = table.Column<string>(type: "text", nullable: true),
                     canceledAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    canceledBy = table.Column<int>(type: "integer", nullable: true),
+                    canceledBy = table.Column<CanceledBy>(type: "\"CanceledBy\"", nullable: true),
                     meetingUrl = table.Column<string>(type: "text", nullable: true),
                     meetingId = table.Column<string>(type: "text", nullable: true),
                     reminderSent = table.Column<bool>(type: "boolean", nullable: false),
-                    paymentStatus = table.Column<int>(type: "integer", nullable: false),
+                    paymentStatus = table.Column<PaymentStatus>(type: "\"PaymentStatus\"", nullable: false),
                     paymentReference = table.Column<string>(type: "text", nullable: true),
                     recurringEventId = table.Column<string>(type: "text", nullable: true),
                     recurringIndex = table.Column<int>(type: "integer", nullable: true),
@@ -298,7 +299,7 @@ namespace MarcaAi.Infrastructure.Migrations
                     id = table.Column<string>(type: "text", nullable: false),
                     eventTypeId = table.Column<string>(type: "text", nullable: false),
                     label = table.Column<string>(type: "text", nullable: false),
-                    type = table.Column<int>(type: "integer", nullable: false),
+                    type = table.Column<QuestionType>(type: "\"QuestionType\"", nullable: false),
                     placeholder = table.Column<string>(type: "text", nullable: true),
                     required = table.Column<bool>(type: "boolean", nullable: false),
                     order = table.Column<int>(type: "integer", nullable: false)
@@ -343,7 +344,7 @@ namespace MarcaAi.Infrastructure.Migrations
                     scheduleId = table.Column<string>(type: "text", nullable: false),
                     userId = table.Column<string>(type: "text", nullable: false),
                     date = table.Column<DateOnly>(type: "date", nullable: false),
-                    type = table.Column<int>(type: "integer", nullable: false),
+                    type = table.Column<ExceptionType>(type: "\"ExceptionType\"", nullable: false),
                     startTime = table.Column<string>(type: "text", nullable: true),
                     endTime = table.Column<string>(type: "text", nullable: true),
                     reason = table.Column<string>(type: "text", nullable: true),

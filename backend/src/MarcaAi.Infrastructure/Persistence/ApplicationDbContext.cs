@@ -12,7 +12,7 @@ namespace MarcaAi.Infrastructure.Persistence;
 /// DbContext principal. Faz o "scaffold" manual do schema existente:
 /// - Tabelas em snake_case (@@map do Prisma).
 /// - Colunas em camelCase (nomes originais do Prisma) via convenção automática + overrides.
-/// - Enums nativos do Postgres (registrados no NpgsqlDataSource + HasPostgresEnum).
+/// - Enums nativos do Postgres (registrados via MapEnum no UseNpgsql — ver DependencyInjection).
 /// - PKs string geradas por CUID na aplicação.
 /// A partir daqui a autoridade do schema é do EF Core (code-first / migrations).
 /// </summary>
@@ -38,18 +38,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     {
         base.OnModelCreating(b);
 
-        // 1) Enums nativos do Postgres (nomes exatos criados pelo Prisma).
-        var enumTranslator = new PreserveCaseNameTranslator();
-        b.HasPostgresEnum<Theme>(null, "Theme", enumTranslator);
-        b.HasPostgresEnum<TeamRole>(null, "TeamRole", enumTranslator);
-        b.HasPostgresEnum<EventTypeColor>(null, "EventTypeColor", enumTranslator);
-        b.HasPostgresEnum<LocationType>(null, "LocationType", enumTranslator);
-        b.HasPostgresEnum<QuestionType>(null, "QuestionType", enumTranslator);
-        b.HasPostgresEnum<ExceptionType>(null, "ExceptionType", enumTranslator);
-        b.HasPostgresEnum<BookingStatus>(null, "BookingStatus", enumTranslator);
-        b.HasPostgresEnum<PaymentStatus>(null, "PaymentStatus", enumTranslator);
-        b.HasPostgresEnum<CanceledBy>(null, "CanceledBy", enumTranslator);
-
+        // Enums nativos: configurados via MapEnum no UseNpgsql (Infrastructure/DependencyInjection.cs),
+        // que no EF 9+/10 já cria os tipos nas migrations e define o tipo das colunas.
         ConfigureTables(b);
 
         // 2) Convenção: toda coluna vira camelCase do nome da propriedade
