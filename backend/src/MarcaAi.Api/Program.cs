@@ -70,6 +70,7 @@ var authBuilder = builder.Services.AddAuthentication(options =>
     // 5a. Valida o access token (JWT) extraído do cookie HttpOnly.
     .AddJwtBearer(options =>
     {
+        options.MapInboundClaims = false; // mantém 'sub','onboarded',... sem remapear p/ URIs
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,

@@ -1,4 +1,5 @@
 using MarcaAi.Application.Common.Interfaces;
+using MarcaAi.Infrastructure.Email;
 using MarcaAi.Infrastructure.Identity;
 using MarcaAi.Infrastructure.Persistence;
 using MarcaAi.Infrastructure.Persistence.Concurrency;
@@ -51,6 +52,9 @@ public static class DependencyInjection
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<ApplicationDbContext>());
         services.AddScoped<IBookingConcurrencyGuard, BookingConcurrencyGuard>();
         services.AddSingleton<ICuidGenerator, CuidGenerator>();
+        services.AddScoped<IUserProvisioning, UserProvisioning>();
+        services.AddScoped<IMagicLinkSender, LoggingMagicLinkSender>();
+        services.AddSingleton<IJwtTokenService, JwtTokenService>();
 
         return services;
     }
