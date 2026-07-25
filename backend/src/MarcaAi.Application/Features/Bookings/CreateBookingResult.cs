@@ -1,3 +1,5 @@
+using MarcaAi.Application.Features.Payments;
+
 namespace MarcaAi.Application.Features.Bookings;
 
 public enum BookingOutcome { Success, EventNotFound, InvalidDuration, Unavailable, Conflict }
@@ -10,7 +12,8 @@ public sealed record BookingConfirmationDto(
     string Status,
     bool RequiresConfirm,
     string EventTitle,
-    string? MeetingUrl);
+    string? MeetingUrl,
+    PixCharge? Pix = null);
 
 public sealed record CreateBookingResult(
     BookingOutcome Outcome,

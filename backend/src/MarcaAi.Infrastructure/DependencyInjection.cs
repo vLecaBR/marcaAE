@@ -1,4 +1,5 @@
 using MarcaAi.Application.Common.Interfaces;
+using MarcaAi.Infrastructure.Billing;
 using MarcaAi.Infrastructure.Bookings;
 using MarcaAi.Infrastructure.Email;
 using MarcaAi.Infrastructure.Identity;
@@ -8,6 +9,7 @@ using MarcaAi.Infrastructure.Persistence.Interceptors;
 using MarcaAi.Infrastructure.Google;
 using MarcaAi.Infrastructure.Jobs;
 using MarcaAi.Infrastructure.Notifications;
+using MarcaAi.Infrastructure.Payments;
 using MarcaAi.Infrastructure.WhatsApp;
 using MarcaAi.Infrastructure.Scheduling;
 using Microsoft.EntityFrameworkCore;
@@ -61,6 +63,8 @@ public static class DependencyInjection
         services.AddScoped<IBookingConcurrencyGuard, BookingConcurrencyGuard>();
         services.AddScoped<IBookingService, BookingService>();
         services.AddScoped<IAvailabilityService, AvailabilityService>();
+        services.AddScoped<IBillingService, StripeBillingService>();
+        services.AddHttpClient<IPixPaymentService, MercadoPagoPixService>();
         services.AddHttpClient<IGoogleCalendarService, GoogleCalendarService>();
         services.AddScoped<IUserProvisioning, UserProvisioning>();
         // E-mail: Resend se houver API key; senão, loga o link no console (dev).

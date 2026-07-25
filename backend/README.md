@@ -22,9 +22,15 @@ mantendo o mesmo banco PostgreSQL. O Next.js passa a ser apenas frontend consumi
 | IDs | CUID v1 via `cuid.net` (compatível com o Prisma `cuid()`) |
 | Docs de API | OpenAPI (JSON em `/openapi/v1.json` no dev) |
 
-Pendentes (fases futuras): pagamentos (Stripe assinaturas / Mercado Pago PIX),
-e-mail real via Resend (hoje o magic link loga no console), notificações WhatsApp,
-lembretes recorrentes via Hangfire.
+Já implementado: auth (magic link + Google), agendamento com anti-double-booking,
+disponibilidade + slots, Google Calendar (FreeBusy + Meet), CRUD de event types e agenda,
+times/RBAC, notificações (e-mail Resend + WhatsApp Evolution), lembretes via Hangfire e
+pagamentos (Stripe assinatura de clínicas + Mercado Pago PIX de consultas, com webhooks).
+
+Pendentes (fases futuras): agendamento recorrente, formulário de anamnese (perguntas
+customizadas), rate limiting, hardening de produção e integração do frontend Next.
+Nota: testar os webhooks (Stripe/Mercado Pago) localmente exige uma URL pública (Stripe CLI
+ou ngrok) — em produção, aponte os webhooks para o domínio da API.
 
 ---
 
@@ -156,6 +162,14 @@ conectado). Falha no Google **não** desfaz a consulta.
 
 **Cancelamento:** marca `CANCELLED`, registra motivo/autor e remove o evento do Google (best-effort).
 
+**Notificações:** ao criar/cancelar uma consulta (e via job de lembrete a cada 15 min no Hangfire),
+dispara e-mail (Resend) ao paciente e ao profissional + WhatsApp (Evolution API). Sensível ao local:
+online → link de acesso; presencial → endereço; telefone → aviso. Todos os canais são best-effort e
+condicionais (sem chave configurada, caem em modo log/simulado).
+
+**Times/RBAC:** clínicas com múltiplos profissionais; papéis OWNER/ADMIN/MEMBER verificados por request
+contra a associação do usuário na equipe.
+
 ---
 
 ## Referência de endpoints
@@ -170,4 +184,5 @@ Resumo por área:
 - **Bookings** — criar (público), listar (dono), detalhe por uid (público), cancelar (público).
 - **Slots** (público) — horários disponíveis.
 - **Me** (protegido) — perfil e onboarding.
+- **Teams** (protegido) — clínicas: CRUD + convite/remoção de membros com RBAC.
 - **Public** — página pública do profissional (`/public/{username}`).

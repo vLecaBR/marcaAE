@@ -3,6 +3,7 @@ using MarcaAi.Application.Common.Interfaces;
 using MarcaAi.Application.Features.Bookings;
 using MarcaAi.Application.Features.Google;
 using MarcaAi.Application.Features.Notifications;
+using MarcaAi.Application.Features.Payments;
 using MarcaAi.Application.Scheduling;
 using MarcaAi.Domain.Entities;
 using MarcaAi.Domain.Enums;
@@ -25,7 +26,8 @@ public sealed class BookingService(
     ApplicationDbContext db,
     IBookingConcurrencyGuard guard,
     IGoogleCalendarService google,
-    INotificationService notify) : IBookingService
+    INotificationService notify,
+    IPixPaymentService pix) : IBookingService
 {
     public async Task<CreateBookingResult> CreateAsync(
         CreateBookingRequest request, CancellationToken cancellationToken = default)
@@ -102,6 +104,7 @@ public sealed class BookingService(
         // ── Google Calendar (best-effort, fora da transação) ─────────────────
         // Se o Google falhar, NÃO desfazemos a consulta (não pode se perder). Apenas logamos.
         string? meetingUrl = eventType.LocationValue;
+        PixCharge? pixData = null;
         if (status == BookingStatus.CONFIRMED)
         {
             try
@@ -128,6 +131,27 @@ public sealed class BookingService(
             {
                 // best-effort — a consulta permanece criada mesmo se o Google falhar.
             }
+        }
+
+        // ── Cobrança PIX (se a consulta tem preço) — best-effort ─────────────
+        if (eventType.Price is > 0)
+        {
+            try
+            {
+                pixData = await pix.CreateAsync(
+                    eventType.Price.Value / 100m,
+                    $"Consulta: {eventType.Title}",
+                    request.GuestEmail,
+                    request.GuestName.Split(' ')[0],
+                    booking.Uid, cancellationToken);
+
+                if (pixData is not null)
+                {
+                    booking.PaymentReference = pixData.Id;
+                    await db.SaveChangesAsync(cancellationToken);
+                }
+            }
+            catch { /* best-effort — a consulta é criada mesmo se o PIX falhar */ }
         }
 
         // ── Notificações (e-mail + WhatsApp, best-effort) ────────────────────
@@ -158,7 +182,8 @@ public sealed class BookingService(
             status.ToString(),
             eventType.RequiresConfirm,
             eventType.Title,
-            meetingUrl));
+            meetingUrl,
+            pixData));
     }
 
     public async Task<CancelBookingResult> CancelAsync(

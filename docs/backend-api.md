@@ -207,6 +207,21 @@ Remove membro. Regras: OWNER remove qualquer um; ADMIN remove MEMBER (ou a si); 
 
 ---
 
+## Pagamentos
+
+### Assinatura da clínica (Stripe) 🔒
+- **POST** `/teams/{teamId}/billing/checkout` — inicia checkout (nova) ou portal (já cliente). Só OWNER. Retorna `{ "url": "..." }`. → `403` não-dono · `503` Stripe não configurado.
+- **GET** `/teams/{teamId}/billing` — status: `{ teamId, status, active, currentPeriodEnd }` (status `none` se nunca assinou). Precisa ser membro.
+- **POST** `/webhooks/stripe` (público, valida assinatura) — eventos `checkout.session.completed`, `customer.subscription.updated|deleted` atualizam a `subscriptions`.
+
+### PIX de consultas (Mercado Pago)
+- Quando o `EventType.price > 0`, o `POST /bookings` gera uma cobrança PIX e retorna o campo **`pix`** (`{ id, qrCodeBase64, qrCode, ticketUrl }`) junto da confirmação. Sem `MercadoPago:AccessToken`, `pix` vem `null`.
+- **POST** `/webhooks/mercadopago` (público) — ao receber pagamento `approved`, marca a consulta (`external_reference` = uid) como `paymentStatus: PAID`.
+
+Config (user-secrets): `Stripe:SecretKey`, `Stripe:WebhookSecret`, `Stripe:PriceId`; `MercadoPago:AccessToken`, `MercadoPago:NotificationUrl`.
+
+---
+
 ## Infra
 - `GET /health` — status do serviço.
 - `GET /openapi/v1.json` (dev) — documento OpenAPI.
