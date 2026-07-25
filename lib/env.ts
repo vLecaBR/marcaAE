@@ -4,6 +4,10 @@ const envSchema = z.object({
   DATABASE_URL: z.string().url(),
   AUTH_SECRET: z.string().min(1),
   AUTH_URL: z.string().url().optional(),
+
+  // Base da API .NET consumida pelo front. Público (NEXT_PUBLIC_) para uso isomórfico,
+  // mas as chamadas autenticadas passam sempre pelo BFF (server-side) — ver ADR-0001.
+  NEXT_PUBLIC_API_URL: z.string().url().default("http://localhost:5080"),
   
   AUTH_GOOGLE_ID: z.string().min(1),
   AUTH_GOOGLE_SECRET: z.string().min(1),

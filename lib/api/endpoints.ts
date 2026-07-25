@@ -1,0 +1,59 @@
+/**
+ * Mapa central de rotas da API .NET (relativas a `/api/v1`).
+ * Único lugar onde os paths do inventário (spec §3.2) são escritos — evita strings soltas.
+ */
+
+export const endpoints = {
+  auth: {
+    magicLinkRequest: "/auth/magic-link/request",
+    magicLinkVerify: "/auth/magic-link/verify",
+    refresh: "/auth/refresh",
+    me: "/auth/me",
+    logout: "/auth/logout",
+    googleStart: "/auth/google/start",
+    googleComplete: "/auth/google/complete",
+  },
+  me: {
+    root: "/me",
+    profile: "/me/profile",
+    onboardingComplete: "/me/onboarding/complete",
+  },
+  teams: {
+    byId: (id: string) => `/teams/${id}`,
+    members: (id: string) => `/teams/${id}/members`,
+    member: (id: string, userId: string) => `/teams/${id}/members/${userId}`,
+    billing: (teamId: string) => `/teams/${teamId}/billing`,
+    billingCheckout: (teamId: string) => `/teams/${teamId}/billing/checkout`,
+  },
+  eventTypes: {
+    root: "/event-types",
+    byId: (id: string) => `/event-types/${id}`,
+    status: (id: string) => `/event-types/${id}/status`,
+  },
+  schedules: {
+    availability: (id: string) => `/schedules/${id}/availability`,
+    exceptions: (id: string) => `/schedules/${id}/exceptions`,
+    exception: (id: string) => `/exceptions/${id}`,
+  },
+  slots: "/slots",
+  public: (username: string) => `/public/${username}`,
+  bookings: {
+    root: "/bookings",
+    byUid: (uid: string) => `/bookings/${uid}`,
+    cancel: (uid: string) => `/bookings/${uid}/cancel`,
+    pay: (uid: string) => `/bookings/${uid}/pay`,
+  },
+  payouts: {
+    onboarding: "/payouts/onboarding",
+    root: "/payouts",
+    providerStatus: (provider: string) => `/payouts/${provider}/status`,
+    byTeam: (teamId: string) => `/payouts/teams/${teamId}`,
+    byId: (id: string) => `/payouts/${id}`,
+  },
+  // Fase 5 — pendente no backend (docs/backend-backlog.md · ADR-0003).
+  finance: {
+    summary: "/finance/summary",
+    statement: "/finance/statement",
+    teamSummary: (teamId: string) => `/finance/teams/${teamId}/summary`,
+  },
+} as const
