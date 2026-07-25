@@ -108,8 +108,10 @@ public sealed class StripeBillingService(
                 var existing = await db.Subscriptions.FirstOrDefaultAsync(s => s.StripeSubscriptionId == sub.Id, ct);
                 if (existing is not null)
                 {
+                    var priceId = FirstPriceId(sub);
                     existing.Status = sub.Status;
-                    existing.StripePriceId = FirstPriceId(sub) ?? existing.StripePriceId;
+                    existing.StripePriceId = priceId ?? existing.StripePriceId;
+                    ApplyPlan(existing, priceId, sub);
                     await db.SaveChangesAsync(ct);
                 }
                 break;
@@ -125,14 +127,16 @@ public sealed class StripeBillingService(
 
         if (existing is null)
         {
-            db.Subscriptions.Add(new Domain.Entities.Subscription
+            var created = new Domain.Entities.Subscription
             {
                 TeamId = teamId,
                 StripeCustomerId = customerId,
                 StripeSubscriptionId = sub.Id,
                 StripePriceId = priceId,
                 Status = sub.Status,
-            });
+            };
+            ApplyPlan(created, priceId, sub);
+            db.Subscriptions.Add(created);
         }
         else
         {
@@ -140,10 +144,40 @@ public sealed class StripeBillingService(
             existing.StripeSubscriptionId = sub.Id;
             existing.StripePriceId = priceId;
             existing.Status = sub.Status;
+            ApplyPlan(existing, priceId, sub);
         }
         await db.SaveChangesAsync(ct);
     }
 
     private static string? FirstPriceId(Subscription sub) =>
         sub.Items?.Data is { Count: > 0 } items ? items[0].Price?.Id : null;
+
+    /// <summary>
+    /// Mapeia o price_id do Stripe para o plano do MarcaAí e grava PlanCode/Quantity/DefaultFeeBps
+    /// (fee de split herdada pelo plano, §4.3). Assentos = quantidade do item da assinatura.
+    /// Price ids configuráveis em Stripe:Prices:{Solo|Clinica|Pro} — nunca hard-coded.
+    /// </summary>
+    private void ApplyPlan(Domain.Entities.Subscription target, string? priceId, Subscription sub)
+    {
+        var (planCode, defaultFeeBps) = MapPlan(priceId);
+        if (planCode is not null)
+        {
+            target.PlanCode = planCode;
+            target.DefaultFeeBps = defaultFeeBps;
+        }
+        target.Quantity = QuantityOf(sub);
+    }
+
+    /// <summary>price_id → (PlanCode, DefaultFeeBps). Tabela §4.3: Solo 3,49% / Clínica 2,49% / Pro 1,99%.</summary>
+    private (string? PlanCode, int? DefaultFeeBps) MapPlan(string? priceId)
+    {
+        if (string.IsNullOrWhiteSpace(priceId)) return (null, null);
+        if (priceId == config["Stripe:Prices:Solo"]) return ("solo", 349);
+        if (priceId == config["Stripe:Prices:Clinica"]) return ("clinica", 249);
+        if (priceId == config["Stripe:Prices:Pro"]) return ("pro", 199);
+        return (null, null);
+    }
+
+    private static int QuantityOf(Subscription sub) =>
+        sub.Items?.Data is { Count: > 0 } items ? (int)items[0].Quantity : 1;
 }

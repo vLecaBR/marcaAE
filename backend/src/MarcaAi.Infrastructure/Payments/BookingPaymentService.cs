@@ -28,6 +28,33 @@ public sealed class BookingPaymentService(
     private static int ParseIntOr(string? value, int fallback) =>
         int.TryParse(value, out var parsed) ? parsed : fallback;
 
+    /// <summary>
+    /// Resolve o percentual da taxa de split (basis points) por ordem de precedência (§4.3):
+    /// 1º <c>PayoutAccount.FeePercentBps</c> (override da sub-conta);
+    /// 2º <c>Subscription.DefaultFeeBps</c> do plano da clínica (quando o recebedor é um TEAM);
+    /// 3º <c>Platform:FeeBps</c> do appsettings (padrão da plataforma).
+    /// </summary>
+    private async Task<int> ResolveFeePercentBpsAsync(
+        Application.Features.Payouts.PayoutAccountDto receiver, CancellationToken ct)
+    {
+        // 1º — override explícito na sub-conta.
+        if (receiver.FeePercentBps is { } accountOverride)
+            return accountOverride;
+
+        // 2º — plano da clínica: só quando o recebedor é o próprio TEAM (OwnerId = TeamId, §4.1).
+        if (receiver.OwnerType == PayoutOwnerType.TEAM)
+        {
+            var planBps = await db.Subscriptions.AsNoTracking()
+                .Where(s => s.TeamId == receiver.OwnerId)
+                .Select(s => s.DefaultFeeBps)
+                .FirstOrDefaultAsync(ct);
+            if (planBps is { } bps) return bps;
+        }
+
+        // 3º — padrão da plataforma.
+        return DefaultFeeBps;
+    }
+
     public async Task<PaymentInitResult> InitiateAsync(
         string bookingUid, PaymentProvider provider, CancellationToken ct = default)
     {
@@ -53,10 +80,11 @@ public sealed class BookingPaymentService(
                 Message: "O profissional/clínica ainda não concluiu o cadastro de recebimentos.");
         }
 
-        // Taxa: override da sub-conta tem precedência sobre o padrão da plataforma.
+        // Taxa dinâmica por prioridade (§4.3): override da sub-conta → plano da clínica → padrão da plataforma.
+        var feePercentBps = await ResolveFeePercentBpsAsync(receiver, ct);
         var fee = FeeCalculator.Compute(new FeeInput(
             GrossCents: gross,
-            FeePercentBps: receiver.FeePercentBps ?? DefaultFeeBps,
+            FeePercentBps: feePercentBps,
             FeeFixedCents: receiver.FeeFixedCents ?? DefaultFeeFixedCents,
             GatewayCostCents: 0,
             AbsorbGatewayCost: receiver.AbsorbGatewayCost));
