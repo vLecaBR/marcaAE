@@ -9,8 +9,42 @@ namespace MarcaAi.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/bookings")]
-public sealed class BookingsController(IBookingService bookings, IApplicationDbContext db) : ControllerBase
+public sealed class BookingsController(
+    IBookingService bookings, IBookingPaymentService payments, IApplicationDbContext db) : ControllerBase
 {
+    /// <summary>Corpo do início de pagamento: método/provedor da consulta.</summary>
+    public sealed record PayRequest(Domain.Enums.PaymentProvider Provider);
+
+    /// <summary>
+    /// Inicia o pagamento da consulta e roteia para o provedor (cartão → Stripe Connect).
+    /// Retorna o clientSecret para o frontend confirmar. A baixa (PAID) ocorre via webhook.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpPost("{uid}/pay")]
+    public async Task<IActionResult> Pay(string uid, [FromBody] PayRequest body, CancellationToken ct)
+    {
+        var r = await payments.InitiateAsync(uid, body.Provider, ct);
+        return r.Outcome switch
+        {
+            PaymentInitOutcome.Success => Ok(new
+            {
+                provider = r.Provider,
+                providerPaymentId = r.ProviderPaymentId,
+                clientSecret = r.ClientSecret,          // cartão (Stripe)
+                pixQrCode = r.PixQrCode,                 // PIX copia-e-cola (Mercado Pago)
+                pixQrCodeBase64 = r.PixQrCodeBase64,
+                pixTicketUrl = r.PixTicketUrl,
+                amountCents = r.AmountCents,
+                applicationFeeCents = r.ApplicationFeeCents,
+            }),
+            PaymentInitOutcome.BookingNotFound => Problem(statusCode: StatusCodes.Status404NotFound, detail: r.Message),
+            PaymentInitOutcome.NotPayable => Problem(statusCode: StatusCodes.Status422UnprocessableEntity, detail: r.Message),
+            PaymentInitOutcome.AlreadyPaid => Problem(statusCode: StatusCodes.Status409Conflict, detail: r.Message),
+            PaymentInitOutcome.NoActiveAccount => Problem(statusCode: StatusCodes.Status409Conflict, detail: r.Message),
+            _ => Problem(statusCode: StatusCodes.Status502BadGateway, detail: r.Message),
+        };
+    }
+
     /// <summary>Agenda uma consulta (fluxo público do paciente). Protegido contra double-booking.</summary>
     [AllowAnonymous]
     [HttpPost]

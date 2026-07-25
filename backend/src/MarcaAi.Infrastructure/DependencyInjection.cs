@@ -70,6 +70,17 @@ public static class DependencyInjection
         services.AddScoped<IBillingService, StripeBillingService>();
         services.AddHttpClient<IPixPaymentService, MercadoPagoPixService>();
         services.AddScoped<IPayoutAccountService, PayoutAccountService>();
+
+        // Split de cartão via Stripe Connect: um único StripeConnectService serve como
+        // provedor de cobrança (ISplitPaymentService, resolvido por IEnumerable no roteador)
+        // e como handler do webhook do Connect (IStripeConnectWebhookHandler).
+        services.AddScoped<StripeConnectService>();
+        services.AddScoped<ISplitPaymentService>(sp => sp.GetRequiredService<StripeConnectService>());
+        services.AddScoped<IStripeConnectWebhookHandler>(sp => sp.GetRequiredService<StripeConnectService>());
+        // Split de PIX via Mercado Pago (typed HttpClient). Somado à coleção de ISplitPaymentService,
+        // permitindo que o BookingPaymentService resolva MERCADO_PAGO por IEnumerable.
+        services.AddHttpClient<ISplitPaymentService, MercadoPagoSplitService>();
+        services.AddScoped<IBookingPaymentService, BookingPaymentService>();
         services.AddHttpClient<IGoogleCalendarService, GoogleCalendarService>();
         services.AddScoped<IUserProvisioning, UserProvisioning>();
         // E-mail: Resend se houver API key; senão, loga o link no console (dev).

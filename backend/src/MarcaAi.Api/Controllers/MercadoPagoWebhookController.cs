@@ -41,9 +41,15 @@ public sealed class MercadoPagoWebhookController(IPixPaymentService pix, IApplic
         if (info is { Status: "approved", ExternalReference: { Length: > 0 } uid })
         {
             var booking = await db.Bookings.FirstOrDefaultAsync(b => b.Uid == uid, ct);
+            // Proteção contra double-processing (§9): só grava a baixa uma vez.
             if (booking is not null && booking.PaymentStatus != PaymentStatus.PAID)
             {
+                // Snapshot financeiro imutável: as fees/net já foram gravadas na iniciação
+                // (BookingPaymentService); aqui confirmamos o pagamento e carimbamos a data/provedor.
                 booking.PaymentStatus = PaymentStatus.PAID;
+                booking.PaidAt = DateTime.UtcNow;
+                booking.PaymentProvider ??= PaymentProvider.MERCADO_PAGO;
+                booking.ProviderPaymentId ??= paymentId;
                 await db.SaveChangesAsync(ct);
             }
         }
