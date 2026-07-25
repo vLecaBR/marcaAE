@@ -60,7 +60,11 @@ public static class DependencyInjection
         services.AddScoped<IAvailabilityService, AvailabilityService>();
         services.AddHttpClient<IGoogleCalendarService, GoogleCalendarService>();
         services.AddScoped<IUserProvisioning, UserProvisioning>();
-        services.AddScoped<IMagicLinkSender, LoggingMagicLinkSender>();
+        // E-mail: Resend se houver API key; senão, loga o link no console (dev).
+        if (!string.IsNullOrWhiteSpace(configuration["Resend:ApiKey"]))
+            services.AddHttpClient<IMagicLinkSender, ResendMagicLinkSender>();
+        else
+            services.AddScoped<IMagicLinkSender, LoggingMagicLinkSender>();
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
 
         return services;
