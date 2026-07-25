@@ -1,5 +1,6 @@
 using System.Text;
 using Hangfire;
+using MarcaAi.Application.Common.Interfaces;
 using Hangfire.PostgreSql;
 using MarcaAi.Application;
 using MarcaAi.Infrastructure;
@@ -183,7 +184,9 @@ app.UseHangfireDashboard("/hangfire");
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok(new { status = "ok", service = "marcaai-api" }));
 
-// TODO(agendamento de jobs): lembretes recorrentes (substitui GET /api/cron/reminders).
-// RecurringJob.AddOrUpdate<IReminderJob>("consultas-reminders", j => j.DispatchDueAsync(), "*/15 * * * *");
+// Lembretes de consulta a cada 15 min (anti no-show) — substitui o GET /api/cron/reminders do Next.
+app.Services.GetRequiredService<IRecurringJobManager>()
+    .AddOrUpdate<IReminderJob>("consultas-reminders",
+        j => j.DispatchDueAsync(CancellationToken.None), "*/15 * * * *");
 
 app.Run();

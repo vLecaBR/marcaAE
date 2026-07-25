@@ -2,6 +2,7 @@ using System.Data;
 using MarcaAi.Application.Common.Interfaces;
 using MarcaAi.Application.Features.Bookings;
 using MarcaAi.Application.Features.Google;
+using MarcaAi.Application.Features.Notifications;
 using MarcaAi.Application.Scheduling;
 using MarcaAi.Domain.Entities;
 using MarcaAi.Domain.Enums;
@@ -23,7 +24,8 @@ namespace MarcaAi.Infrastructure.Bookings;
 public sealed class BookingService(
     ApplicationDbContext db,
     IBookingConcurrencyGuard guard,
-    IGoogleCalendarService google) : IBookingService
+    IGoogleCalendarService google,
+    INotificationService notify) : IBookingService
 {
     public async Task<CreateBookingResult> CreateAsync(
         CreateBookingRequest request, CancellationToken cancellationToken = default)
@@ -128,6 +130,26 @@ public sealed class BookingService(
             }
         }
 
+        // ── Notificações (e-mail + WhatsApp, best-effort) ────────────────────
+        try
+        {
+            var owner = await db.Users.AsNoTracking()
+                .Where(u => u.Id == request.OwnerId)
+                .Select(u => new { u.Name, u.Email, u.TimeZone })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (owner is not null)
+            {
+                await notify.NotifyBookingCreatedAsync(new BookingNotification(
+                    booking.Uid, booking.GuestName, booking.GuestEmail, booking.GuestPhone,
+                    owner.Name ?? "Profissional", owner.Email,
+                    eventType.Title, startUtc, endUtc,
+                    request.GuestTimeZone, owner.TimeZone, meetingUrl, eventType.RequiresConfirm),
+                    cancellationToken);
+            }
+        }
+        catch { /* notificação é best-effort */ }
+
         return CreateBookingResult.Success(new BookingConfirmationDto(
             booking.Uid,
             booking.StartTime,
@@ -141,7 +163,10 @@ public sealed class BookingService(
     public async Task<CancelBookingResult> CancelAsync(
         string uid, string? reason, string? canceledBy, CancellationToken cancellationToken = default)
     {
-        var booking = await db.Bookings.FirstOrDefaultAsync(b => b.Uid == uid, cancellationToken);
+        var booking = await db.Bookings
+            .Include(b => b.EventType)
+            .Include(b => b.Owner)
+            .FirstOrDefaultAsync(b => b.Uid == uid, cancellationToken);
         if (booking is null)
             return new CancelBookingResult(CancelOutcome.NotFound, "Agendamento não encontrado.");
         if (booking.Status == BookingStatus.CANCELLED)
@@ -163,6 +188,18 @@ public sealed class BookingService(
             try { await google.DeleteEventAsync(booking.UserId, booking.MeetingId!, cancellationToken); }
             catch { /* best-effort */ }
         }
+
+        // Notifica o cancelamento (best-effort).
+        try
+        {
+            await notify.NotifyBookingCancelledAsync(new BookingNotification(
+                booking.Uid, booking.GuestName, booking.GuestEmail, booking.GuestPhone,
+                booking.Owner.Name ?? "Profissional", booking.Owner.Email,
+                booking.EventType.Title, booking.StartTime, booking.EndTime,
+                booking.GuestTimeZone, booking.Owner.TimeZone, booking.MeetingUrl, booking.EventType.RequiresConfirm),
+                reason, cancellationToken);
+        }
+        catch { /* best-effort */ }
 
         return new CancelBookingResult(CancelOutcome.Success);
     }

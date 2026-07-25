@@ -6,6 +6,9 @@ using MarcaAi.Infrastructure.Persistence;
 using MarcaAi.Infrastructure.Persistence.Concurrency;
 using MarcaAi.Infrastructure.Persistence.Interceptors;
 using MarcaAi.Infrastructure.Google;
+using MarcaAi.Infrastructure.Jobs;
+using MarcaAi.Infrastructure.Notifications;
+using MarcaAi.Infrastructure.WhatsApp;
 using MarcaAi.Infrastructure.Scheduling;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -65,6 +68,22 @@ public static class DependencyInjection
             services.AddHttpClient<IMagicLinkSender, ResendMagicLinkSender>();
         else
             services.AddScoped<IMagicLinkSender, LoggingMagicLinkSender>();
+
+        // E-mail client (notificações): Resend se houver key; senão log.
+        if (!string.IsNullOrWhiteSpace(configuration["Resend:ApiKey"]))
+            services.AddHttpClient<IEmailClient, ResendEmailClient>();
+        else
+            services.AddScoped<IEmailClient, LoggingEmailClient>();
+
+        // WhatsApp: Evolution API se configurada; senão log (modo simulado).
+        if (!string.IsNullOrWhiteSpace(configuration["WhatsApp:ApiUrl"]) &&
+            !string.IsNullOrWhiteSpace(configuration["WhatsApp:ApiKey"]))
+            services.AddHttpClient<IWhatsAppSender, EvolutionWhatsAppSender>();
+        else
+            services.AddScoped<IWhatsAppSender, LoggingWhatsAppSender>();
+
+        services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<IReminderJob, ReminderJob>();
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
 
         return services;
