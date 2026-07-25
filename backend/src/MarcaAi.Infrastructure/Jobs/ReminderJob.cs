@@ -36,7 +36,8 @@ public sealed class ReminderJob(
                 b.Uid, b.GuestName, b.GuestEmail, b.GuestPhone,
                 b.Owner.Name ?? "Profissional", b.Owner.Email,
                 b.EventType.Title, b.StartTime, b.EndTime,
-                b.GuestTimeZone, b.Owner.TimeZone, b.MeetingUrl, b.EventType.RequiresConfirm);
+                b.GuestTimeZone, b.Owner.TimeZone,
+                b.EventType.LocationType, b.MeetingUrl, b.EventType.RequiresConfirm);
 
             await notify.NotifyBookingReminderAsync(n, cancellationToken);
             b.ReminderSent = true;

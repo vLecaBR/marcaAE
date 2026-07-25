@@ -174,6 +174,39 @@ Perfil público + tipos de consulta ativos. Retorna `PublicProfileDto`
 
 ---
 
+## Teams / Clínicas 🔒
+
+RBAC verificado por request (o usuário pode ter papéis diferentes em equipes diferentes).
+
+### GET `/teams`
+Equipes do usuário (com o papel dele). Retorna `TeamDto[]` (`id, name, slug, description, logo, theme, brandColor, role, memberCount`).
+
+### GET `/teams/{id}`
+Detalhe + membros (precisa ser membro). Retorna `TeamDetailDto` (inclui `members[]`: `userId, name, email, role`). → `404` se não for membro.
+
+### POST `/teams`
+Cria a clínica (o criador vira OWNER). Body = `TeamInput`:
+```json
+{ "name": "Clínica Vida", "slug": "clinica-vida", "description": null, "logo": null, "theme": "LIGHT", "brandColor": "#0f766e" }
+```
+→ `201` (TeamDto) · `409` slug em uso · `422`.
+
+### PUT `/teams/{id}` (OWNER/ADMIN)
+Atualiza. Mesmo body. → `204` · `403` · `404` · `409` · `422`.
+
+### POST `/teams/{id}/members` (OWNER/ADMIN)
+Convida um usuário **já existente** por e-mail. Body = `InviteMemberInput`:
+```json
+{ "email": "colega@clinica.com", "role": "MEMBER" }
+```
+`role`: ADMIN | MEMBER (padrão MEMBER). → `200` (TeamMemberDto) · `403` · `404` (usuário/equipe) · `409` (já é membro) · `422`.
+
+### DELETE `/teams/{id}/members/{userId}`
+Remove membro. Regras: OWNER remove qualquer um; ADMIN remove MEMBER (ou a si); MEMBER só a si. Não permite deixar a equipe sem OWNER.
+→ `204` · `403` · `404` · `409` (último dono).
+
+---
+
 ## Infra
 - `GET /health` — status do serviço.
 - `GET /openapi/v1.json` (dev) — documento OpenAPI.

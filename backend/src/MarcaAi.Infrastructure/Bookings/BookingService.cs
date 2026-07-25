@@ -144,7 +144,8 @@ public sealed class BookingService(
                     booking.Uid, booking.GuestName, booking.GuestEmail, booking.GuestPhone,
                     owner.Name ?? "Profissional", owner.Email,
                     eventType.Title, startUtc, endUtc,
-                    request.GuestTimeZone, owner.TimeZone, meetingUrl, eventType.RequiresConfirm),
+                    request.GuestTimeZone, owner.TimeZone,
+                    eventType.LocationType, meetingUrl, eventType.RequiresConfirm),
                     cancellationToken);
             }
         }
@@ -196,7 +197,8 @@ public sealed class BookingService(
                 booking.Uid, booking.GuestName, booking.GuestEmail, booking.GuestPhone,
                 booking.Owner.Name ?? "Profissional", booking.Owner.Email,
                 booking.EventType.Title, booking.StartTime, booking.EndTime,
-                booking.GuestTimeZone, booking.Owner.TimeZone, booking.MeetingUrl, booking.EventType.RequiresConfirm),
+                booking.GuestTimeZone, booking.Owner.TimeZone,
+                booking.EventType.LocationType, booking.MeetingUrl, booking.EventType.RequiresConfirm),
                 reason, cancellationToken);
         }
         catch { /* best-effort */ }

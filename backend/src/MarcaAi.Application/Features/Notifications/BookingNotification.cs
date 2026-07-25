@@ -1,3 +1,5 @@
+using MarcaAi.Domain.Enums;
+
 namespace MarcaAi.Application.Features.Notifications;
 
 /// <summary>Dados para notificar sobre uma consulta (e-mail + WhatsApp).</summary>
@@ -13,5 +15,6 @@ public sealed record BookingNotification(
     DateTime EndTimeUtc,
     string GuestTimeZone,
     string OwnerTimeZone,
-    string? MeetingUrl,
+    LocationType LocationType,
+    string? LocationDetail,   // Meet link (online) OU endereço (presencial)
     bool RequiresConfirm);

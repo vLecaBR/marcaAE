@@ -1,6 +1,7 @@
 using System.Globalization;
 using MarcaAi.Application.Common.Interfaces;
 using MarcaAi.Application.Features.Notifications;
+using MarcaAi.Domain.Enums;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -8,7 +9,8 @@ namespace MarcaAi.Infrastructure.Notifications;
 
 /// <summary>
 /// Compõe e dispara notificações de consulta por e-mail (paciente + profissional) e WhatsApp.
-/// Cada canal é best-effort e isolado — a falha de um não afeta o outro nem o fluxo de agendamento.
+/// A linha de local é sensível ao tipo: online → link de acesso; presencial → endereço; telefone → aviso.
+/// Cada canal é best-effort e isolado.
 /// </summary>
 public sealed class NotificationService(
     IEmailClient email, IWhatsAppSender whatsapp, IConfiguration config, ILogger<NotificationService> logger)
@@ -33,18 +35,17 @@ public sealed class NotificationService(
         }
         else
         {
-            var meetLine = string.IsNullOrWhiteSpace(n.MeetingUrl) ? null : $"🔗 Acesso: {n.MeetingUrl}";
+            var locLine = LocationLine(n);
             await Email(n.GuestEmail, $"Consulta confirmada — {n.EventTitle}",
                 Template($"Olá, {n.GuestName}!",
                     $"Sua consulta <b>{n.EventTitle}</b> com {n.OwnerName} está <b>confirmada</b>.",
-                    $"📅 Quando: {whenGuest}", meetLine, manageUrl, "Gerenciar consulta"), ct);
+                    $"📅 Quando: {whenGuest}", locLine, manageUrl, "Gerenciar consulta"), ct);
             await Whats(n.GuestPhone,
                 $"Olá, *{n.GuestName}*! 👋\n\nSua consulta de *{n.EventTitle}* com {n.OwnerName} está *CONFIRMADA*.\n\n📅 {whenGuest}" +
-                (string.IsNullOrWhiteSpace(n.MeetingUrl) ? "" : $"\n🔗 {n.MeetingUrl}") +
+                (locLine is null ? "" : $"\n{locLine}") +
                 $"\n\nGerenciar: {manageUrl}", ct);
         }
 
-        // Notifica o profissional
         var whenOwner = FormatWhen(n.StartTimeUtc, n.OwnerTimeZone);
         await Email(n.OwnerEmail, $"Nova consulta — {n.EventTitle}",
             Template("Você tem uma nova consulta",
@@ -68,17 +69,29 @@ public sealed class NotificationService(
     {
         var whenGuest = FormatWhen(n.StartTimeUtc, n.GuestTimeZone);
         var manageUrl = $"{AppUrl}/booking/{n.Uid}";
-        var meetLine = string.IsNullOrWhiteSpace(n.MeetingUrl) ? null : $"🔗 Acesso: {n.MeetingUrl}";
+        var locLine = LocationLine(n);
         await Email(n.GuestEmail, $"Lembrete — {n.EventTitle}",
             Template($"Lembrete, {n.GuestName}! ⏰",
                 $"Você tem <b>{n.EventTitle}</b> com {n.OwnerName} em breve.",
-                $"📅 {whenGuest}", meetLine, manageUrl, "Ver consulta"), ct);
+                $"📅 {whenGuest}", locLine, manageUrl, "Ver consulta"), ct);
         await Whats(n.GuestPhone,
             $"Lembrete! ⏰\n\nOlá, *{n.GuestName}*, você tem *{n.EventTitle}* com {n.OwnerName}.\n\n📅 {whenGuest}" +
-            (string.IsNullOrWhiteSpace(n.MeetingUrl) ? "" : $"\n🔗 {n.MeetingUrl}"), ct);
+            (locLine is null ? "" : $"\n{locLine}"), ct);
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
+
+    /// <summary>Linha de local sensível ao tipo: online → acesso; presencial → endereço; telefone → aviso.</summary>
+    private static string? LocationLine(BookingNotification n) => n.LocationType switch
+    {
+        LocationType.IN_PERSON =>
+            string.IsNullOrWhiteSpace(n.LocationDetail) ? "📍 Consulta presencial" : $"📍 Endereço: {n.LocationDetail}",
+        LocationType.PHONE =>
+            "📞 A consulta será por telefone — aguarde o contato.",
+        // GOOGLE_MEET, ZOOM, TEAMS, CUSTOM → link de acesso online
+        _ => string.IsNullOrWhiteSpace(n.LocationDetail) ? null : $"🔗 Acesso: {n.LocationDetail}",
+    };
+
     private async Task Email(string to, string subject, string html, CancellationToken ct)
     {
         try { await email.SendAsync(to, subject, html, ct); }
