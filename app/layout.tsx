@@ -1,8 +1,7 @@
 import type { Metadata, Viewport } from "next"
 import { Inter, Geist_Mono } from "next/font/google"
-import { auth } from "@/auth"
 import { cn } from "@/lib/utils"
-import { AuthProvider } from "@/components/auth-provider"
+import { MotionProvider } from "@/components/motion/provider"
 import { Toaster } from "@/components/ui/sonner"
 import "./globals.css"
 
@@ -17,36 +16,37 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: { default: "Marca AI", template: "%s | Marca AI" },
-  description: "Agendamento inteligente para profissionais de alto padrão.",
+  title: { default: "MarcaAí", template: "%s | MarcaAí" },
+  description: "Agendamento e pagamento para profissionais de saúde.",
 }
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // Sem bloquear zoom: acessibilidade (§4.3) permite ampliação pelo usuário.
+  themeColor: "#0f9e8e",
 }
 
-export default async function RootLayout({
+/**
+ * Root layout. A sessão NÃO é mais resolvida aqui (NextAuth descartado — ADR-0001):
+ * cada segmento protegido consulta a API via guardas (`lib/auth/guards.ts`).
+ * `MotionProvider` habilita as micro-interações leves (LazyMotion) em toda a árvore.
+ */
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const session = await auth()
-
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body
         className={cn(
           "min-h-screen bg-background font-sans antialiased",
           inter.variable,
-          geistMono.variable
+          geistMono.variable,
         )}
       >
-        <AuthProvider session={session}>
-          {children}
-        </AuthProvider>
+        <MotionProvider>{children}</MotionProvider>
         <Toaster />
       </body>
     </html>

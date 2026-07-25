@@ -1,94 +1,132 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
-
-html, body {
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-}
-
 @import 'tailwindcss' source(none);
 @source '../**/*.{js,ts,jsx,tsx}';
 @import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
+/* ────────────────────────────────────────────────────────────────────────────
+   MarcaAí — Design System Healthtech (spec §4.2)
+   Tom "saúde: sério, calmo, acessível". Teal como cor de confiança clínica.
+   O roxo legado (#7c3aed) foi substituído. Contraste alvo WCAG AA (§4.3).
+   ──────────────────────────────────────────────────────────────────────────── */
+
 :root {
   --font-size: 16px;
+
+  /* Tokens de marca Healthtech (§4.2) — a fonte da verdade da paleta. */
+  --brand-primary: #0f9e8e;         /* teal — ações primárias, confiança */
+  --brand-secondary: #134e6f;       /* azul profundo — cabeçalhos, navegação */
+  --accent-care: #3fbf8f;           /* verde suave — sucesso, "confirmada" */
+  --warning: #e9a23b;               /* âmbar — pendências (pagamento pendente) */
+  --warning-foreground: #4a2e00;
+  --danger: #d64550;                /* vermelho contido — cancelamento, erro */
+  --surface: #f7faf9;               /* fundo clínico "limpo" */
+
+  /* Cor de marca temável por profissional/clínica (ADR-0004). Fallback = teal.
+     Só deve ser sobrescrita no boundary da página pública, validada por contraste. */
+  --brand-themeable: var(--brand-primary);
+
+  /* Tokens de sistema (shadcn/ui) derivados da paleta acima. */
   --background: #ffffff;
-  --foreground: oklch(0.145 0 0);
+  --foreground: #1b2a34;            /* cinza-azulado escuro, alto contraste */
   --card: #ffffff;
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: #6d28d9;
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.95 0.0058 264.53);
-  --secondary-foreground: #030213;
-  --muted: #ececf0;
-  --muted-foreground: #717182;
-  --accent: #e9ebef;
-  --accent-foreground: #030213;
-  --destructive: #d4183d;
+  --card-foreground: #1b2a34;
+  --popover: #ffffff;
+  --popover-foreground: #1b2a34;
+  --primary: var(--brand-primary);
+  --primary-foreground: #ffffff;
+  --secondary: #e7f3f1;             /* superfície teal clara */
+  --secondary-foreground: #134e6f;
+  --muted: #edf2f1;
+  --muted-foreground: #5b6b72;
+  --accent: #e4f3ec;               /* tint "care" */
+  --accent-foreground: #134e6f;
+  --destructive: var(--danger);
   --destructive-foreground: #ffffff;
-  --border: rgba(0, 0, 0, 0.1);
+  --border: rgba(27, 42, 52, 0.10);
   --input: transparent;
-  --input-background: #f3f3f5;
-  --switch-background: #cbced4;
+  --input-background: #f1f5f4;
+  --switch-background: #cbd5d3;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: #030213;
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --ring: var(--brand-primary);
+
+  /* Charts em família teal/azul + âmbar de destaque. */
+  --chart-1: #0f9e8e;
+  --chart-2: #3fbf8f;
+  --chart-3: #134e6f;
+  --chart-4: #e9a23b;
+  --chart-5: #6fb1c9;
+
+  --radius: 0.75rem;
+
+  --sidebar: #f7faf9;
+  --sidebar-foreground: #1b2a34;
+  --sidebar-primary: var(--brand-primary);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e7f3f1;
+  --sidebar-accent-foreground: #134e6f;
+  --sidebar-border: rgba(27, 42, 52, 0.08);
+  --sidebar-ring: var(--brand-primary);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --font-weight-medium: 500;
-  --font-weight-normal: 400;
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  --brand-primary: #2bb6a6;
+  --brand-secondary: #7fb4cc;
+  --accent-care: #4fcf9f;
+  --warning: #f0b45c;
+  --warning-foreground: #2a1a00;
+  --danger: #e5646e;
+  --surface: #0e1a20;
+  --brand-themeable: var(--brand-primary);
+
+  --background: #0e1a20;
+  --foreground: #e7eef0;
+  --card: #12222a;
+  --card-foreground: #e7eef0;
+  --popover: #12222a;
+  --popover-foreground: #e7eef0;
+  --primary: var(--brand-primary);
+  --primary-foreground: #06231f;
+  --secondary: #1b2e36;
+  --secondary-foreground: #e7eef0;
+  --muted: #1b2e36;
+  --muted-foreground: #93a4ab;
+  --accent: #1e3a38;
+  --accent-foreground: #e7eef0;
+  --destructive: var(--danger);
+  --destructive-foreground: #1a0507;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.06);
+  --ring: var(--brand-primary);
+
+  --chart-1: #2bb6a6;
+  --chart-2: #4fcf9f;
+  --chart-3: #7fb4cc;
+  --chart-4: #f0b45c;
+  --chart-5: #6fb1c9;
+
+  --sidebar: #0e1a20;
+  --sidebar-foreground: #e7eef0;
+  --sidebar-primary: var(--brand-primary);
+  --sidebar-primary-foreground: #06231f;
+  --sidebar-accent: #1b2e36;
+  --sidebar-accent-foreground: #e7eef0;
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-ring: var(--brand-primary);
 }
 
 @theme inline {
+  /* Tokens de marca expostos como utilitários Tailwind (bg-brand-primary, text-care…). */
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-brand-themeable: var(--brand-themeable);
+  --color-care: var(--accent-care);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-danger: var(--danger);
+  --color-surface: var(--surface);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -127,6 +165,9 @@ html, body {
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Fonte: Inter (carregada via next/font em app/layout.tsx). */
+  --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
 }
 
 @layer base {
@@ -136,51 +177,34 @@ html, body {
 
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
   }
 
   html {
     font-size: var(--font-size);
   }
 
-  h1 {
-    font-size: var(--text-2xl);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+  h1 { font-size: var(--text-2xl); font-weight: var(--font-weight-medium); line-height: 1.4; }
+  h2 { font-size: var(--text-xl);  font-weight: var(--font-weight-medium); line-height: 1.4; }
+  h3 { font-size: var(--text-lg);  font-weight: var(--font-weight-medium); line-height: 1.5; }
+  h4 { font-size: var(--text-base);font-weight: var(--font-weight-medium); line-height: 1.5; }
+  label  { font-size: var(--text-base); font-weight: var(--font-weight-medium); line-height: 1.5; }
+  button { font-size: var(--text-base); font-weight: var(--font-weight-medium); line-height: 1.5; }
+  input  { font-size: var(--text-base); font-weight: var(--font-weight-normal); line-height: 1.5; }
+
+  /* Acessibilidade (§4.3): foco sempre visível. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
 
-  h2 {
-    font-size: var(--text-xl);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
-  }
-
-  h3 {
-    font-size: var(--text-lg);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
-  }
-
-  h4 {
-    font-size: var(--text-base);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
-  }
-
-  label {
-    font-size: var(--text-base);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
-  }
-
-  button {
-    font-size: var(--text-base);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
-  }
-
-  input {
-    font-size: var(--text-base);
-    font-weight: var(--font-weight-normal);
-    line-height: 1.5;
+  /* Respeita quem pede menos movimento — reforça o MotionConfig do provider. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }

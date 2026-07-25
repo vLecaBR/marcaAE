@@ -1,75 +1,72 @@
-import NextAuth from "next-auth"
-import authConfig from "./auth.config"
-import { NextResponse } from "next/server"
+import { NextResponse, type NextRequest } from "next/server"
 
-const { auth } = NextAuth(authConfig)
+/**
+ * Middleware (Next 16 `proxy.ts`). NextAuth foi descartado (ADR-0001).
+ *
+ * Gating **grosseiro** por presença do cookie de sessão (`marcaai_at`) — barato e roda no Edge.
+ * A verificação fina (onboarding, papéis de equipe) é feita server-side pelos guardas
+ * (`lib/auth/guards.ts`) via `getMe()`, porque só ali dá para consultar a API e reescrever
+ * cookies. Aqui não chamamos a API .NET para não pagar latência por requisição.
+ *
+ * Mantém o rate limit em memória da rota pública de agendamento.
+ */
+
+const ACCESS_COOKIE = "marcaai_at"
+const PUBLIC_ROUTES = new Set(["/", "/login"])
 
 export const config = {
-  matcher: ["/((?!api/auth|_next/static|_next/image|favicon.ico).*)"]
+  matcher: ["/((?!api/auth|api/bff|_next/static|_next/image|favicon.ico).*)"],
 }
 
-const PUBLIC_ROUTES = ["/", "/login"]
+// Rate limit em memória para a rota de agendamento (best-effort; produção usa store distribuído).
+const rateLimit = new Map<string, { count: number; lastReset: number }>()
+const RATE_LIMIT_WINDOW_MS = 60 * 1000
+const MAX_REQUESTS_PER_WINDOW = 5
 
-// Controle de Rate Limit em memória para /api/book
-const rateLimit = new Map<string, { count: number; lastReset: number }>();
-const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minuto
-const MAX_REQUESTS_PER_WINDOW = 5;
+function isRateLimited(req: NextRequest): boolean {
+  const ip = req.headers.get("x-forwarded-for") ?? "unknown-ip"
+  const now = Date.now()
+  const windowStart = now - RATE_LIMIT_WINDOW_MS
+  const record = rateLimit.get(ip)
+  if (!record || record.lastReset < windowStart) {
+    rateLimit.set(ip, { count: 1, lastReset: now })
+    return false
+  }
+  if (record.count >= MAX_REQUESTS_PER_WINDOW) return true
+  record.count += 1
+  rateLimit.set(ip, record)
+  return false
+}
 
-export default auth((req) => {
+export default function proxy(req: NextRequest) {
   const { nextUrl } = req
 
-  // Aplicar Rate Limiting apenas na rota de agendamento (book)
-  if (nextUrl.pathname.startsWith('/api/book')) {
-    const ip = req.headers.get('x-forwarded-for') ?? 'unknown-ip';
-    
-    const now = Date.now();
-    const windowStart = now - RATE_LIMIT_WINDOW_MS;
-    
-    const record = rateLimit.get(ip);
-    
-    if (!record || record.lastReset < windowStart) {
-      rateLimit.set(ip, { count: 1, lastReset: now });
-    } else {
-      if (record.count >= MAX_REQUESTS_PER_WINDOW) {
-        return new NextResponse(
-          JSON.stringify({ error: 'Muitas requisições. Tente novamente mais tarde.' }),
-          { status: 429, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
-      record.count += 1;
-      rateLimit.set(ip, record);
+  if (nextUrl.pathname.startsWith("/api/book")) {
+    if (isRateLimited(req)) {
+      return new NextResponse(
+        JSON.stringify({ error: "Muitas requisições. Tente novamente mais tarde." }),
+        { status: 429, headers: { "Content-Type": "application/json" } },
+      )
     }
   }
 
-  const isLoggedIn = !!req.auth
-  const isOnboarded = req.auth?.user?.onboarded
+  const hasSession = req.cookies.has(ACCESS_COOKIE)
+  const isProtected =
+    nextUrl.pathname.startsWith("/dashboard") ||
+    nextUrl.pathname.startsWith("/settings") ||
+    nextUrl.pathname.startsWith("/onboarding")
+  const isPublic = PUBLIC_ROUTES.has(nextUrl.pathname)
 
-  const isDashboardRoute = nextUrl.pathname.startsWith("/dashboard") || nextUrl.pathname.startsWith("/settings")
-  const isOnboardingRoute = nextUrl.pathname.startsWith("/onboarding")
-  const isPublicRoute = PUBLIC_ROUTES.includes(nextUrl.pathname)
-
-  // Redirect unauthenticated users to login if trying to access restricted routes
-  if (!isLoggedIn && (isDashboardRoute || isOnboardingRoute)) {
+  // Sem cookie tentando acessar área logada → login.
+  if (!hasSession && isProtected) {
     return NextResponse.redirect(new URL("/login", nextUrl))
   }
 
-  // Redirect authenticated users trying to access login page to dashboard or onboarding
-  if (isLoggedIn && isPublicRoute) {
-    if (!isOnboarded) {
-      return NextResponse.redirect(new URL("/onboarding", nextUrl))
-    }
-    return NextResponse.redirect(new URL("/dashboard", nextUrl))
-  }
-
-  // Enforce onboarding for authenticated users
-  if (isLoggedIn && !isOnboarded && !isOnboardingRoute && !isPublicRoute) {
-    return NextResponse.redirect(new URL("/onboarding", nextUrl))
-  }
-
-  // Prevent onboarded users from accessing the onboarding page
-  if (isLoggedIn && isOnboarded && isOnboardingRoute) {
+  // Com cookie na página de login/landing → dashboard (o refinamento de onboarding
+  // acontece no layout via guarda de rota).
+  if (hasSession && isPublic) {
     return NextResponse.redirect(new URL("/dashboard", nextUrl))
   }
 
   return NextResponse.next()
-})
+}

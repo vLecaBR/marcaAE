@@ -1,16 +1,16 @@
-import { auth } from "@/auth"
-import { redirect } from "next/navigation"
+import { requireOnboarded } from "@/lib/auth/guards"
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
-import { cn } from "@/lib/utils"
 import type { Metadata } from "next"
 import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { CopyLinkButton } from "@/components/dashboard/copy-link-button"
-import { Calendar, Clock, Video, TrendingUp, Users, CheckCircle2, ArrowUpRight } from "lucide-react"
+import { Stagger, StaggerItem } from "@/components/motion/primitives"
+import { Calendar, Clock, Video, Users, CheckCircle2, ArrowUpRight } from "lucide-react"
 import { isToday, isTomorrow, format } from "date-fns"
-import { ptBR } from "date-fns/locale"
+
+// NOTA (Fase 1/F5): a leitura de dados abaixo ainda usa Prisma (legado). Será migrada para
+// os endpoints da API .NET (`GET /bookings`, `GET /finance/summary`) — ver docs/backend-backlog.md.
 
 export const metadata: Metadata = { title: "Dashboard" }
 
@@ -27,13 +27,12 @@ const COLOR_MAP: Record<string, string> = {
 }
 
 export default async function DashboardPage() {
-  const session = await auth()
-  if (!session?.user?.id) redirect("/login")
+  const user = await requireOnboarded()
 
   const [eventTypes, bookingStats, upcomingBookings] = await Promise.all([
     // Event types com contagem de bookings
     prisma.eventType.findMany({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       orderBy: { createdAt: "asc" },
       select: {
         id: true,
@@ -50,14 +49,14 @@ export default async function DashboardPage() {
     // Stats gerais de bookings
     prisma.booking.groupBy({
       by: ["status"],
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       _count: { _all: true },
     }),
 
     // Próximos agendamentos
     prisma.booking.findMany({
       where: {
-        userId: session.user.id,
+        userId: user.id,
         status: { in: ["CONFIRMED", "PENDING"] },
         startTime: { gte: new Date() },
       },
@@ -86,8 +85,8 @@ export default async function DashboardPage() {
 
   const todayCount = upcomingBookings.filter(b => isToday(b.startTime)).length
 
-  const firstName = session.user.name?.split(" ")[0] ?? "Usuário"
-  const username  = session.user.username
+  const firstName = user.username ?? user.email.split("@")[0]
+  const username  = user.username
 
   const publicLink = username ? `marca-ai-app.vercel.app/${username}` : ""
 
@@ -115,24 +114,26 @@ export default async function DashboardPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <Stagger className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         {[
-          { label: "Total de agendamentos", value: totalBookings.toString(), icon: Calendar, color: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400" },
-          { label: "Confirmados", value: confirmedCount.toString(), icon: CheckCircle2, color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" },
-          { label: "Pendentes", value: pendingCount.toString(), icon: Clock, color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
-          { label: "Cancelados", value: cancelledCount.toString(), icon: Users, color: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400" },
+          { label: "Total de agendamentos", value: totalBookings.toString(), icon: Calendar, color: "bg-secondary text-brand-primary" },
+          { label: "Confirmados", value: confirmedCount.toString(), icon: CheckCircle2, color: "bg-care/15 text-care" },
+          { label: "Pendentes", value: pendingCount.toString(), icon: Clock, color: "bg-warning/15 text-warning" },
+          { label: "Cancelados", value: cancelledCount.toString(), icon: Users, color: "bg-destructive/15 text-destructive" },
         ].map((s) => (
-          <Card key={s.label} className="p-5 rounded-2xl border-border/60 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${s.color}`}>
-                <s.icon size={18} />
+          <StaggerItem key={s.label}>
+            <Card className="p-5 rounded-2xl border-border/60 shadow-sm h-full">
+              <div className="flex items-center justify-between">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${s.color}`}>
+                  <s.icon size={18} />
+                </div>
               </div>
-            </div>
-            <div className="mt-4" style={{ fontSize: 28, fontWeight: 700 }}>{s.value}</div>
-            <div className="text-xs text-muted-foreground mt-1">{s.label}</div>
-          </Card>
+              <div className="mt-4" style={{ fontSize: 28, fontWeight: 700 }}>{s.value}</div>
+              <div className="text-xs text-muted-foreground mt-1">{s.label}</div>
+            </Card>
+          </StaggerItem>
         ))}
-      </div>
+      </Stagger>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <Card className="lg:col-span-2 p-6 rounded-2xl border-border/60 shadow-sm">
@@ -151,7 +152,7 @@ export default async function DashboardPage() {
               upcomingBookings.map((m) => (
                 <div key={m.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${COLOR_MAP[m.eventType.color] || "from-violet-500 to-fuchsia-500"} shrink-0 flex items-center justify-center text-white text-sm`} style={{ fontWeight: 600 }}>
+                    <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${COLOR_MAP[m.eventType.color] || "from-brand-primary to-care"} shrink-0 flex items-center justify-center text-white text-sm`} style={{ fontWeight: 600 }}>
                       {getInitials(m.guestName)}
                     </div>
                     <div className="min-w-0">
@@ -171,7 +172,7 @@ export default async function DashboardPage() {
           </div>
         </Card>
 
-        <Card className="p-6 rounded-2xl border-border/60 bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white shadow-sm flex flex-col">
+        <Card className="p-6 rounded-2xl border-border/60 bg-gradient-to-br from-brand-primary to-brand-secondary text-white shadow-sm flex flex-col">
           <h2 className="text-white font-semibold text-lg">Seu link de agendamento</h2>
           <p className="text-white/80 text-sm mt-1.5 flex-1">Compartilhe em todo lugar onde alguém possa querer marcar um horário com você.</p>
           <div className="mt-5 p-3 rounded-xl bg-white/15 backdrop-blur-sm font-mono text-sm break-all">
