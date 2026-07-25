@@ -33,7 +33,28 @@ public class Booking
     public bool ReminderSent { get; set; }
 
     public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.UNPAID;
-    public string? PaymentReference { get; set; }
+    public string? PaymentReference { get; set; }   // legado; ProviderPaymentId é o canônico
+
+    // --- Snapshot financeiro do split (imutável após PAID). Ver financial-split-spec.md §5.4. ---
+    /// <summary>Preço cobrado, em centavos (snapshot do EventType.Price no momento da cobrança).</summary>
+    public int? PriceCents { get; set; }
+    public string Currency { get; set; } = "BRL";
+
+    public PaymentProvider? PaymentProvider { get; set; }
+    /// <summary>Sub-conta que recebeu o repasse líquido.</summary>
+    public string? PayoutAccountId { get; set; }
+
+    /// <summary>Taxa da plataforma MarcaAí retida, em centavos.</summary>
+    public int? PlatformFeeCents { get; set; }
+    /// <summary>Custo do gateway, em centavos (quando conhecido).</summary>
+    public int? GatewayFeeCents { get; set; }
+    /// <summary>Valor líquido repassado ao profissional/clínica, em centavos.</summary>
+    public int? NetToProviderCents { get; set; }
+
+    /// <summary>Id canônico do pagamento no provedor.</summary>
+    public string? ProviderPaymentId { get; set; }
+    public DateTime? PaidAt { get; set; }
+    public DateTime? RefundedAt { get; set; }
 
     public string? RecurringEventId { get; set; }
     public int? RecurringIndex { get; set; }

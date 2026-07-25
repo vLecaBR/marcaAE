@@ -33,6 +33,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<BookingResponse> BookingResponses => Set<BookingResponse>();
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
+    public DbSet<PayoutAccount> PayoutAccounts => Set<PayoutAccount>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -193,6 +194,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.HasIndex(x => x.StartTime);
             e.HasIndex(x => x.Status);
             e.HasIndex(x => x.GuestEmail);
+            // Lookup do webhook de pagamento por id do provedor (idempotência — spec §9).
+            e.HasIndex(x => x.ProviderPaymentId);
+            e.HasIndex(x => x.PayoutAccountId);
             // Índice composto crítico p/ a query anti double-booking.
             e.HasIndex(x => new { x.UserId, x.StartTime, x.EndTime, x.Status });
             e.HasOne(x => x.Owner).WithMany(u => u.BookingsAsOwner)
@@ -221,6 +225,20 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.HasIndex(x => x.StripeSubscriptionId).IsUnique();
             e.HasOne(x => x.Team).WithOne(t => t.Subscription)
                 .HasForeignKey<Subscription>(x => x.TeamId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ---- payout_accounts (sub-conta de recebimento; Fase 2 do split) ----
+        // Ownership polimórfico (OwnerType + OwnerId): SEM propriedade de navegação em
+        // User/Team e SEM FK (a coluna aponta ora para users, ora para teams). A integridade
+        // do owner é garantida na Application. Ver financial-split-spec.md §5.2/§5.3.
+        b.Entity<PayoutAccount>(e =>
+        {
+            e.ToTable("payout_accounts");
+            e.HasKey(x => x.Id);
+            // Uma conta por (owner, provider): permite MP + Stripe para o mesmo owner.
+            e.HasIndex(x => new { x.OwnerType, x.OwnerId, x.Provider }).IsUnique();
+            e.HasIndex(x => new { x.OwnerType, x.OwnerId });
+            e.HasIndex(x => new { x.Provider, x.ExternalAccountId });
         });
     }
 

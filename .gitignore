@@ -52,3 +52,5 @@ report.json
 
 # Manter o template de variáveis versionado (a regra .env* acima o ignoraria)
 !.env.example
+
+/docs

@@ -55,6 +55,10 @@ public static class DependencyInjection
                 npg.MapEnum<Domain.Enums.BookingStatus>("BookingStatus", nameTranslator: translator);
                 npg.MapEnum<Domain.Enums.PaymentStatus>("PaymentStatus", nameTranslator: translator);
                 npg.MapEnum<Domain.Enums.CanceledBy>("CanceledBy", nameTranslator: translator);
+                // Split de marketplace (Fase 2) — sub-contas de recebimento.
+                npg.MapEnum<Domain.Enums.PaymentProvider>("PaymentProvider", nameTranslator: translator);
+                npg.MapEnum<Domain.Enums.PayoutAccountStatus>("PayoutAccountStatus", nameTranslator: translator);
+                npg.MapEnum<Domain.Enums.PayoutOwnerType>("PayoutOwnerType", nameTranslator: translator);
             });
             options.AddInterceptors(sp.GetRequiredService<AuditableInterceptor>());
         });
@@ -65,6 +69,7 @@ public static class DependencyInjection
         services.AddScoped<IAvailabilityService, AvailabilityService>();
         services.AddScoped<IBillingService, StripeBillingService>();
         services.AddHttpClient<IPixPaymentService, MercadoPagoPixService>();
+        services.AddScoped<IPayoutAccountService, PayoutAccountService>();
         services.AddHttpClient<IGoogleCalendarService, GoogleCalendarService>();
         services.AddScoped<IUserProvisioning, UserProvisioning>();
         // E-mail: Resend se houver API key; senão, loga o link no console (dev).
