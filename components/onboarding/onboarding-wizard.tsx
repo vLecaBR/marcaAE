@@ -1,183 +1,349 @@
 "use client"
 
-import { useState } from "react"
-import { useSession } from "next-auth/react"
-import { StepProfile } from "./step-profile"
-import { StepAvailability } from "./step-availability"
-import { completeOnboardingAction } from "@/lib/actions/onboarding"
-import { cn } from "@/lib/utils"
+/**
+ * Wizard de onboarding Healthtech. NextAuth removido (sem `useSession`).
+ * RHF + Zod para validação robusta; transições de etapa com Framer Motion (leve, via `m`).
+ * Persistência pelo BFF: PUT /me/profile → POST /me/onboarding/complete → refresh de sessão.
+ */
 
-interface WizardProps {
-  user: {
-    id: string
-    name: string | null
-    email: string
-    image: string | null
-    username: string | null
-    timeZone: string
-    bio: string | null
-  }
-  schedule: {
-    id: string
-    timeZone: string
-    availabilities: {
-      dayOfWeek: number
-      startTime: string
-      endTime: string
-    }[]
-  } | null
-}
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { AnimatePresence, m } from "motion/react"
+import { apiClient } from "@/lib/api/client"
+import { endpoints } from "@/lib/api/endpoints"
+import { isApiError } from "@/lib/api/problem-details"
+import {
+  healthProfileSchema,
+  type HealthProfileInput,
+  COUNCILS,
+  TIMEZONES,
+  STEP_FIELDS,
+} from "@/lib/validators/health-profile"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
+import { Stethoscope, IdCard, Settings, ArrowRight, ArrowLeft, Check, Loader2 } from "lucide-react"
 
 const STEPS = [
-  { id: 1, label: "Perfil" },
-  { id: 2, label: "Disponibilidade" },
-]
+  { title: "Identidade", icon: Stethoscope },
+  { title: "Presença", icon: IdCard },
+  { title: "Preferências", icon: Settings },
+] as const
 
-export function OnboardingWizard({ user, schedule }: WizardProps) {
-  const { update } = useSession()
-  const [currentStep, setCurrentStep] = useState(1)
-  const [isFinishing, setIsFinishing] = useState(false)
-  const [finishError, setFinishError] = useState<string | null>(null)
+const EASE = [0.22, 1, 0.36, 1] as const
 
-  async function handleFinish() {
-    if (isFinishing) return // evita double click bug
+export function OnboardingWizard({
+  defaultUsername = "",
+  defaultTimeZone = "America/Sao_Paulo",
+}: {
+  defaultUsername?: string
+  defaultTimeZone?: string
+}) {
+  const router = useRouter()
+  const [step, setStep] = useState(0)
+  const [dir, setDir] = useState(1)
+  const [formError, setFormError] = useState<string | null>(null)
 
-    setIsFinishing(true)
-    setFinishError(null)
+  const {
+    register,
+    handleSubmit,
+    trigger,
+    setError,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm<HealthProfileInput>({
+    resolver: zodResolver(healthProfileSchema),
+    defaultValues: {
+      username: defaultUsername,
+      timeZone: defaultTimeZone,
+      council: "CRM",
+    },
+  })
 
+  // Detecta o fuso do navegador (sobrescreve o padrão do servidor, se disponível).
+  useEffect(() => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if (tz) setValue("timeZone", tz)
+  }, [setValue])
+
+  async function goNext() {
+    const ok = await trigger(STEP_FIELDS[step])
+    if (!ok) return
+    setDir(1)
+    setStep((s) => Math.min(s + 1, STEPS.length - 1))
+  }
+  function goBack() {
+    setDir(-1)
+    setStep((s) => Math.max(s - 1, 0))
+  }
+
+  async function onSubmit(values: HealthProfileInput) {
+    setFormError(null)
     try {
-      const result = await completeOnboardingAction()
-
-      if (!result.success) {
-        setFinishError(result.error)
-        setIsFinishing(false)
+      await apiClient(endpoints.me.profile, { method: "PUT", body: values })
+      await apiClient(endpoints.me.onboardingComplete, { method: "POST" })
+      // Rotaciona o token para refletir username/onboarded novos (spec §3.2).
+      await fetch("/api/auth/refresh", { method: "POST", credentials: "same-origin" }).catch(() => null)
+      router.replace("/dashboard")
+      router.refresh()
+    } catch (err) {
+      if (isApiError(err) && err.kind === "conflict") {
+        setError("username", { message: "Este link já está em uso. Escolha outro." })
+        setDir(-1)
+        setStep(1)
         return
       }
-
-      // Atualiza a sessão explicitamente para o NextAuth injetar o novo cookie
-      await update({ onboarded: true })
-
-      // força reload completo para garantir que tudo resetou
-      window.location.href = "/dashboard"
-    } catch (err) {
-      console.error(err)
-      setFinishError("Erro inesperado ao finalizar onboarding.")
-      setIsFinishing(false)
+      if (isApiError(err) && err.kind === "validation") {
+        setFormError("Revise os campos destacados e tente novamente.")
+        return
+      }
+      setFormError("Não foi possível concluir agora. Tente novamente em instantes.")
     }
   }
 
+  const progress = ((step + 1) / STEPS.length) * 100
+
   return (
-    <div className="mx-auto w-full max-w-2xl">
-      {/* Header */}
-      <div className="mb-10 text-center">
-        <div className="inline-flex items-center gap-2 mb-6">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-600">
-            <svg
-              className="h-4 w-4 text-white"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2.5}
+    <Card className="w-full max-w-2xl rounded-2xl border-border/60 p-8 shadow-sm sm:p-10">
+      {/* Stepper */}
+      <div className="flex items-center justify-between">
+        {STEPS.map((s, i) => {
+          const Icon = s.icon
+          const done = step > i
+          const active = step === i
+          return (
+            <div key={s.title} className="flex flex-1 items-center last:flex-none">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`flex h-9 w-9 items-center justify-center rounded-full transition ${
+                    done || active ? "bg-brand-primary text-white" : "bg-muted text-muted-foreground"
+                  } ${active ? "ring-4 ring-brand-primary/15" : ""}`}
+                >
+                  {done ? <Check size={16} /> : <Icon size={16} />}
+                </div>
+                <span className={`hidden text-sm sm:inline ${active || done ? "" : "text-muted-foreground"}`}>
+                  {s.title}
+                </span>
+              </div>
+              {i < STEPS.length - 1 && (
+                <div className={`mx-3 h-px flex-1 ${done ? "bg-brand-primary" : "bg-border"}`} />
+              )}
+            </div>
+          )
+        })}
+      </div>
+      <Progress value={progress} className="mt-6 h-1" />
+
+      <form onSubmit={handleSubmit(onSubmit)} className="mt-8" noValidate>
+        {formError && (
+          <div className="mb-6 rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+            {formError}
+          </div>
+        )}
+
+        <div className="min-h-[300px] overflow-hidden">
+          <AnimatePresence mode="wait" custom={dir}>
+            <m.div
+              key={step}
+              custom={dir}
+              initial={{ opacity: 0, x: dir * 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: dir * -24 }}
+              transition={{ duration: 0.26, ease: EASE }}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"
-              />
-            </svg>
-          </span>
-          <span className="text-xl font-semibold tracking-tight text-white">
-            People <span className="text-violet-400">OS</span>
-          </span>
+              {step === 0 && <StepIdentity register={register} errors={errors} />}
+              {step === 1 && <StepPresence register={register} errors={errors} />}
+              {step === 2 && <StepPreferences register={register} errors={errors} />}
+            </m.div>
+          </AnimatePresence>
         </div>
 
-        <h1 className="text-2xl font-semibold text-white">
-          Vamos configurar sua conta
-        </h1>
+        {/* Navegação */}
+        <div className="mt-8 flex items-center justify-between">
+          {step > 0 ? (
+            <Button type="button" variant="ghost" onClick={goBack} className="rounded-xl">
+              <ArrowLeft size={16} className="mr-1" /> Voltar
+            </Button>
+          ) : (
+            <div />
+          )}
+          {step < STEPS.length - 1 ? (
+            <Button type="button" onClick={goNext} className="h-11 rounded-xl px-6">
+              Continuar <ArrowRight size={16} className="ml-1" />
+            </Button>
+          ) : (
+            <Button type="submit" disabled={isSubmitting} className="h-11 rounded-xl px-6">
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={16} className="mr-1 animate-spin" /> Concluindo…
+                </>
+              ) : (
+                <>
+                  Concluir <Check size={16} className="ml-1" />
+                </>
+              )}
+            </Button>
+          )}
+        </div>
+      </form>
+    </Card>
+  )
+}
 
-        <p className="mt-2 text-sm text-zinc-400">
-          Leva menos de 2 minutos.
+/* ── Campos por etapa ─────────────────────────────────────────────────────── */
+
+type FieldProps = {
+  register: ReturnType<typeof useForm<HealthProfileInput>>["register"]
+  errors: ReturnType<typeof useForm<HealthProfileInput>>["formState"]["errors"]
+}
+
+function Field({
+  label,
+  htmlFor,
+  error,
+  hint,
+  children,
+}: {
+  label: string
+  htmlFor?: string
+  error?: string
+  hint?: string
+  children: React.ReactNode
+}) {
+  return (
+    <div>
+      <label htmlFor={htmlFor} className="text-sm font-medium">
+        {label}
+      </label>
+      <div className="mt-1.5">{children}</div>
+      {error ? (
+        <p className="mt-1.5 text-xs text-destructive">{error}</p>
+      ) : hint ? (
+        <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>
+      ) : null}
+    </div>
+  )
+}
+
+const selectClass =
+  "h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+
+function StepIdentity({ register, errors }: FieldProps) {
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-xl font-semibold">Quem é você profissionalmente</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Essas informações ajudam seus pacientes a reconhecer você.
         </p>
       </div>
-
-      {/* Steps */}
-      <div className="mb-8 flex items-center justify-center gap-3">
-        {STEPS.map((step, idx) => (
-          <div key={step.id} className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div
-                className={cn(
-                  "flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium transition-all",
-                  currentStep === step.id
-                    ? "bg-violet-600 text-white"
-                    : currentStep > step.id
-                    ? "bg-violet-600/20 text-violet-400"
-                    : "bg-zinc-800 text-zinc-500"
-                )}
-              >
-                {currentStep > step.id ? (
-                  <svg
-                    className="h-3.5 w-3.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2.5}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M4.5 12.75l6 6 9-13.5"
-                    />
-                  </svg>
-                ) : (
-                  step.id
-                )}
-              </div>
-
-              <span
-                className={cn(
-                  "text-sm",
-                  currentStep === step.id ? "text-white" : "text-zinc-500"
-                )}
-              >
-                {step.label}
-              </span>
-            </div>
-
-            {idx < STEPS.length - 1 && (
-              <div
-                className={cn(
-                  "h-px w-12 transition-all",
-                  currentStep > step.id ? "bg-violet-600/50" : "bg-zinc-800"
-                )}
-              />
-            )}
-          </div>
-        ))}
+      <Field label="Nome completo" htmlFor="name" error={errors.name?.message}>
+        <Input id="name" className="h-11 rounded-xl" placeholder="Dra. Ana Costa" {...register("name")} />
+      </Field>
+      <Field label="Especialidade" htmlFor="specialty" error={errors.specialty?.message}>
+        <Input id="specialty" className="h-11 rounded-xl" placeholder="Psicologia clínica" {...register("specialty")} />
+      </Field>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Conselho" htmlFor="council" error={errors.council?.message}>
+          <select id="council" className={selectClass} {...register("council")}>
+            {COUNCILS.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Número de registro" htmlFor="registrationNumber" error={errors.registrationNumber?.message}>
+          <Input
+            id="registrationNumber"
+            className="h-11 rounded-xl"
+            placeholder="Ex.: 06/12345"
+            {...register("registrationNumber")}
+          />
+        </Field>
       </div>
+    </div>
+  )
+}
 
-      {/* Content */}
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-8 shadow-2xl backdrop-blur-sm">
-        {finishError && (
-          <div className="mb-6 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3">
-            <p className="text-sm text-rose-400">{finishError}</p>
-          </div>
-        )}
-
-        {currentStep === 1 && (
-          <StepProfile
-            user={user}
-            onSuccess={() => setCurrentStep(2)}
+function StepPresence({ register, errors }: FieldProps) {
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-xl font-semibold">Sua presença de agendamento</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          É por aqui que os pacientes marcam horário com você.
+        </p>
+      </div>
+      <Field
+        label="Link da sua agenda"
+        htmlFor="username"
+        error={errors.username?.message}
+        hint="Você pode alterar depois nas configurações."
+      >
+        <div className="flex items-center overflow-hidden rounded-xl border border-input bg-background focus-within:ring-2 focus-within:ring-ring/30">
+          <span className="border-r border-input bg-muted px-3 py-2.5 text-sm text-muted-foreground">
+            marcaai.app/
+          </span>
+          <input
+            id="username"
+            className="flex-1 bg-transparent px-3 py-2.5 text-sm outline-none"
+            placeholder="dra-ana"
+            {...register("username")}
           />
-        )}
+        </div>
+      </Field>
+      <Field label="Clínica ou consultório (opcional)" htmlFor="clinicName" error={errors.clinicName?.message}>
+        <Input id="clinicName" className="h-11 rounded-xl" placeholder="Clínica Vida" {...register("clinicName")} />
+      </Field>
+      <Field
+        label="Bio (opcional)"
+        htmlFor="bio"
+        error={errors.bio?.message}
+        hint="Uma frase curta e acolhedora sobre o seu trabalho."
+      >
+        <textarea
+          id="bio"
+          rows={3}
+          maxLength={160}
+          className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+          placeholder="Atendimento humanizado com foco em terapia cognitivo-comportamental."
+          {...register("bio")}
+        />
+      </Field>
+    </div>
+  )
+}
 
-        {currentStep === 2 && (
-          <StepAvailability
-            schedule={schedule}
-            onSuccess={handleFinish}
-            isFinishing={isFinishing}
-          />
-        )}
+function StepPreferences({ register, errors }: FieldProps) {
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-xl font-semibold">Ajustes finais</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Confirme seu fuso horário para que os horários apareçam corretos.
+        </p>
+      </div>
+      <Field
+        label="Fuso horário"
+        htmlFor="timeZone"
+        error={errors.timeZone?.message}
+        hint="Detectado automaticamente pelo seu navegador — ajuste se necessário."
+      >
+        <select id="timeZone" className={selectClass} {...register("timeZone")}>
+          {TIMEZONES.map((tz) => (
+            <option key={tz} value={tz}>
+              {tz.replace("America/", "").replace("_", " ")}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <div className="rounded-xl border border-care/30 bg-care/10 p-4 text-sm text-foreground/80">
+        Tudo pronto! Ao concluir, você poderá configurar seus tipos de consulta e ativar seus
+        recebimentos.
       </div>
     </div>
   )
