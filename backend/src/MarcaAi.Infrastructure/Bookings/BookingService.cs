@@ -137,4 +137,33 @@ public sealed class BookingService(
             eventType.Title,
             meetingUrl));
     }
+
+    public async Task<CancelBookingResult> CancelAsync(
+        string uid, string? reason, string? canceledBy, CancellationToken cancellationToken = default)
+    {
+        var booking = await db.Bookings.FirstOrDefaultAsync(b => b.Uid == uid, cancellationToken);
+        if (booking is null)
+            return new CancelBookingResult(CancelOutcome.NotFound, "Agendamento não encontrado.");
+        if (booking.Status == BookingStatus.CANCELLED)
+            return new CancelBookingResult(CancelOutcome.AlreadyCancelled, "Agendamento já está cancelado.");
+
+        var by = string.Equals(canceledBy, "OWNER", StringComparison.OrdinalIgnoreCase)
+            ? CanceledBy.OWNER
+            : CanceledBy.GUEST;
+
+        booking.Status = BookingStatus.CANCELLED;
+        booking.CancelReason = reason;
+        booking.CanceledAt = DateTime.UtcNow;
+        booking.CanceledBy = by;
+        await db.SaveChangesAsync(cancellationToken);
+
+        // Remove o evento do Google Calendar (best-effort).
+        if (!string.IsNullOrWhiteSpace(booking.MeetingId))
+        {
+            try { await google.DeleteEventAsync(booking.UserId, booking.MeetingId!, cancellationToken); }
+            catch { /* best-effort */ }
+        }
+
+        return new CancelBookingResult(CancelOutcome.Success);
+    }
 }
