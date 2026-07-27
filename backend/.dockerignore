@@ -1,0 +1,8 @@
+# Evita copiar artefatos de build da máquina local para a imagem (build limpo e menor).
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/*.user
+**/appsettings.Development.json
+cookies.txt

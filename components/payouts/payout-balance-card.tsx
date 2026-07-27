@@ -11,7 +11,8 @@
  */
 
 import { Stagger, StaggerItem } from "@/components/motion/primitives"
-import { ArrowDownLeft, ArrowUpRight, Clock, Banknote, RotateCcw } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
+import { ArrowDownLeft, ArrowUpRight, Clock, Banknote, RotateCcw, Receipt } from "lucide-react"
 import { cn, formatBRLCents } from "@/lib/utils"
 import type {
   PayoutBalanceDto,
@@ -117,9 +118,11 @@ export function PayoutBalanceCard({
         </div>
 
         {transactions.length === 0 ? (
-          <p className="px-5 py-10 text-center text-sm text-muted-foreground">
-            Assim que você receber sua primeira consulta, as movimentações aparecem aqui.
-          </p>
+          <EmptyState
+            icon={Receipt}
+            title="Nenhuma movimentação ainda"
+            description="Assim que você receber sua primeira consulta, os pagamentos e saques aparecem aqui."
+          />
         ) : (
           <Stagger className="divide-y divide-border/60">
             {transactions.map((tx) => {

@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { UserPlus, Trash2, Loader2, Info } from "lucide-react"
+import { UserPlus, Trash2, Loader2, Info, Users } from "lucide-react"
 import { Stagger, StaggerItem } from "@/components/motion/primitives"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -57,6 +58,7 @@ export function ClinicMembers({
     register,
     handleSubmit,
     reset,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<InviteFormInput>({
     resolver: zodResolver(inviteFormSchema),
@@ -148,6 +150,21 @@ export function ClinicMembers({
         </p>
       )}
 
+      {members.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title="Sua clínica ainda está só com você"
+          description="Convide colegas para dividir a agenda e acompanhar o financeiro da clínica em um só lugar."
+          action={
+            canManage ? (
+              <Button type="button" onClick={() => setFocus("email")} className="rounded-xl">
+                <UserPlus className="h-4 w-4" />
+                Convidar profissional
+              </Button>
+            ) : undefined
+          }
+        />
+      ) : (
       <Stagger className="divide-y divide-border/60">
         {members.map((member) => {
           const editable = canModifyRow(member)
@@ -208,6 +225,7 @@ export function ClinicMembers({
           )
         })}
       </Stagger>
+      )}
 
       {canManage ? (
         <div className="border-t border-border/60 bg-muted/30 px-5 py-5 sm:px-6">

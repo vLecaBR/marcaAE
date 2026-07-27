@@ -7,6 +7,9 @@ using MarcaAi.Infrastructure;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.EntityFrameworkCore;
+using MarcaAi.Infrastructure.Persistence;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -156,11 +159,36 @@ builder.Services.AddHangfireServer(o =>
     o.SchedulePollingInterval = TimeSpan.FromSeconds(30);
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 6b. Forwarded headers — atrás de proxy que termina TLS (Render/Vercel/etc.).
+//     Sem isso, Request.IsHttps=false internamente: o UseHttpsRedirection entra em
+//     loop e os cookies de sessão não recebem Secure. Confiamos no X-Forwarded-Proto/For
+//     injetados pela borda.
+// ─────────────────────────────────────────────────────────────────────────────
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 var app = builder.Build();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6c. Migrations no boot — aplica o schema pendente (EF Core) ao subir. Simples para
+//     uma instância única (free tier). Se escalar para múltiplas réplicas, mover isto
+//     para um job/step de release dedicado.
+// ─────────────────────────────────────────────────────────────────────────────
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    db.Database.Migrate();
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 7. Pipeline.
 // ─────────────────────────────────────────────────────────────────────────────
+app.UseForwardedHeaders();       // 1º: corrige scheme/host atrás do proxy (ver 6b)
 app.UseExceptionHandler();       // -> ProblemDetails
 app.UseStatusCodePages();
 

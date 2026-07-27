@@ -19,7 +19,11 @@ async function getProfile(username: string): Promise<PublicProfileWithEventsDto 
   try {
     return await serverApiFetch<PublicProfileWithEventsDto>(endpoints.public(username))
   } catch (err) {
-    if (isApiError(err) && err.kind === "not_found") return null
+    // Perfil inexistente (404) ou backend inacessível/instável (network/server) → tratamos como
+    // "não encontrado" para exibir a página de 404 amigável em vez de estourar 500.
+    if (isApiError(err) && (err.kind === "not_found" || err.kind === "network" || err.kind === "server")) {
+      return null
+    }
     throw err
   }
 }

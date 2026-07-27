@@ -18,7 +18,14 @@ export async function getMe(): Promise<MeDto | null> {
   try {
     return await serverApiFetch<MeDto>(endpoints.auth.me)
   } catch (err) {
-    if (isApiError(err) && err.kind === "unauthorized") return null
+    if (isApiError(err)) {
+      // Sem sessão (401) → deslogado. Backend inacessível/instável (network/server) → degradação
+      // graciosa: tratamos como "sem sessão" para que páginas de entrada (landing, guardas)
+      // renderizem em vez de estourar 500. A autorização real segue sendo do backend.
+      if (err.kind === "unauthorized" || err.kind === "network" || err.kind === "server") {
+        return null
+      }
+    }
     throw err
   }
 }
