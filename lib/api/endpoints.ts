@@ -19,6 +19,7 @@ export const endpoints = {
     onboardingComplete: "/me/onboarding/complete",
   },
   teams: {
+    root: "/teams",
     byId: (id: string) => `/teams/${id}`,
     members: (id: string) => `/teams/${id}/members`,
     member: (id: string, userId: string) => `/teams/${id}/members/${userId}`,

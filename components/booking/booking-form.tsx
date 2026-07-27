@@ -96,7 +96,7 @@ export function BookingForm({
       setResult({ status: "error", message: json.message ?? json.error ?? "Erro ao agendar." })
     } else if (eventType.price && json.uid) {
       // Consulta paga → checkout dedicado (PIX × Cartão + polling de confirmação).
-      window.location.href = `/booking/${json.uid}/pay`
+      window.location.assign(`/booking/${json.uid}/pay`)
     } else {
       setResult({
         status: "success",

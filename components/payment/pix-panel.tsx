@@ -41,7 +41,6 @@ export function PixPanel({
 
       {qrCodeBase64 ? (
         <div className="mt-6 rounded-2xl border border-border bg-white p-4 shadow-sm">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={`data:image/png;base64,${qrCodeBase64}`} alt="QR Code PIX" className="h-52 w-52" />
         </div>
       ) : null}

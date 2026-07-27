@@ -12,6 +12,8 @@ import {
   Calendar,
   Layers,
   Users,
+  Wallet,
+  BarChart3,
   Settings as SettingsIcon,
   Clock,
   Search,
@@ -99,6 +101,8 @@ export default async function DashboardLayout({
             <NavLink href="/dashboard" icon={<Home />} exact>Início</NavLink>
             <NavLink href="/dashboard/bookings" icon={<Calendar />}>Meus agendamentos</NavLink>
             <NavLink href="/dashboard/event-types" icon={<Layers />}>Tipos de consulta</NavLink>
+            <NavLink href="/dashboard/recebimentos" icon={<Wallet />}>Recebimentos</NavLink>
+            <NavLink href="/dashboard/financeiro" icon={<BarChart3 />}>Financeiro</NavLink>
             <NavLink href="/dashboard/teams" icon={<Users />}>Clínicas</NavLink>
           </div>
 
@@ -141,6 +145,7 @@ export default async function DashboardLayout({
         <NavLink href="/dashboard" icon={<Home />} exact variant="mobile">Início</NavLink>
         <NavLink href="/dashboard/bookings" icon={<Calendar />} variant="mobile">Agenda</NavLink>
         <NavLink href="/dashboard/event-types" icon={<Layers />} variant="mobile">Consultas</NavLink>
+        <NavLink href="/dashboard/recebimentos" icon={<Wallet />} variant="mobile">Recebe</NavLink>
         <NavLink href="/dashboard/teams" icon={<Users />} variant="mobile">Clínicas</NavLink>
         <NavLink href="/settings/profile" icon={<SettingsIcon />} variant="mobile">Ajustes</NavLink>
       </nav>

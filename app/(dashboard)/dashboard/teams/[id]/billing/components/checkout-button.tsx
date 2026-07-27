@@ -11,8 +11,8 @@ export function CheckoutButton({ teamId, isSubscribed }: { teamId: string, isSub
   async function handleClick() {
     setLoading(true)
     const result = await createCheckoutSessionAction(teamId)
-    
-    if (result.url) {
+
+    if ("url" in result) {
       window.location.href = result.url
     } else {
       alert(result.error ?? "Erro ao gerar pagamento")

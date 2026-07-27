@@ -60,7 +60,6 @@ export default async function UserPublicPage({ params }: Props) {
       <main className="max-w-3xl mx-auto px-6 py-12">
         <div className="flex flex-col items-center text-center">
           {profile.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={profile.image}
               alt={profile.name ?? ""}
