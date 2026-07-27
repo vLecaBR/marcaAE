@@ -20,6 +20,8 @@ import { isApiError } from "@/lib/api/problem-details"
 import { ClinicTabs } from "@/components/team/clinic-tabs"
 import { TeamFinanceSummary } from "@/components/finance/team-finance-summary"
 import { ProfessionalRevenueList } from "@/components/finance/professional-revenue-list"
+import { PremiumGate } from "@/components/billing/premium-gate"
+import { getTeamBilling } from "@/lib/api/billing"
 import { MOCK_CLINIC } from "@/lib/mocks/team"
 import { MOCK_TEAM_FINANCE } from "@/lib/mocks/team-finance"
 import type { TeamFinanceSummaryDto } from "@/lib/api/finance-types"
@@ -50,6 +52,9 @@ export default async function TeamFinancePage() {
   }
 
   const canSeeFinance = role === "OWNER" || role === "ADMIN"
+
+  // Estado de plano/trial da clínica (fallback mock §2.4) — o financeiro consolidado é feature premium.
+  const { billing } = await getTeamBilling(teamId)
 
   // RBAC: membro comum não vê o faturamento dos colegas.
   if (!canSeeFinance) {
@@ -117,9 +122,18 @@ export default async function TeamFinancePage() {
         )}
       </header>
 
-      <TeamFinanceSummary summary={finance} />
-
-      <ProfessionalRevenueList summary={finance} />
+      {/* Gating premium (§8.1): liberado no trial (§8.2) ou em plano pago; senão, card de upgrade. */}
+      <PremiumGate
+        feature="team_finance"
+        billing={billing}
+        title="Financeiro da clínica é um recurso premium"
+        description="Acompanhe o consolidado da clínica e a receita por profissional. Disponível nos planos Clínica e Pro — ou durante o seu teste grátis."
+      >
+        <div className="space-y-6">
+          <TeamFinanceSummary summary={finance} />
+          <ProfessionalRevenueList summary={finance} />
+        </div>
+      </PremiumGate>
 
       {isDemo && (
         <p className="text-center text-xs text-muted-foreground">

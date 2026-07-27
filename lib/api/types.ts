@@ -111,13 +111,12 @@ export interface TeamMemberDto {
   role: TeamRoleName
 }
 
-/** `GET /teams/{teamId}/billing` → status da assinatura. */
-export interface TeamBillingDto {
-  teamId: string
-  status: string
-  active: boolean
-  currentPeriodEnd: string | null
-}
+/**
+ * `GET /teams/{teamId}/billing` → estado de plano/assinatura/uso/trial.
+ * A definição definitiva vive em `billing-types.ts` (Fase 8); re-exportada aqui para
+ * compatibilidade com quem já importava `TeamBillingDto` de `@/lib/api/types`.
+ */
+export type { TeamBillingDto, SubscriptionStatus, PlanUsageDto, TrialStateDto } from "@/lib/api/billing-types"
 
 /** `GET /bookings` → item de lista do profissional. */
 export interface BookingListItemDto {

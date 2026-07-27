@@ -5,7 +5,9 @@ import { DevNav } from "@/components/dashboard/dev-nav"
 import { NotificationButton } from "@/components/dashboard/notification-button"
 import { LogoutButton } from "@/components/dashboard/logout-button"
 import { FadeIn } from "@/components/motion/primitives"
+import { TrialBanner } from "@/components/billing/trial-banner"
 import { requireOnboarded } from "@/lib/auth/guards"
+import { getPrimaryTeamBilling } from "@/lib/api/billing"
 import type { MeDto } from "@/lib/api/types"
 import {
   Home,
@@ -78,6 +80,8 @@ export default async function DashboardLayout({
   children: React.ReactNode
 }) {
   const user = await requireOnboarded()
+  // Estado de trial da clínica principal (com fallback mock gracioso §2.4) para o banner persistente.
+  const { billing } = await getPrimaryTeamBilling()
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/30 md:flex-row dark:bg-background">
@@ -136,6 +140,7 @@ export default async function DashboardLayout({
         </header>
 
         <main className="mx-auto w-full max-w-7xl flex-1 p-4 md:p-8">
+          <TrialBanner billing={billing} />
           <FadeIn>{children}</FadeIn>
         </main>
       </div>
