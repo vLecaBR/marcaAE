@@ -18,6 +18,7 @@ import { serverApiFetch } from "@/lib/api/http-client"
 import { endpoints } from "@/lib/api/endpoints"
 import { isApiError } from "@/lib/api/problem-details"
 import { ClinicMembers } from "@/components/team/clinic-members"
+import { ClinicTabs } from "@/components/team/clinic-tabs"
 import { MOCK_CLINIC } from "@/lib/mocks/team"
 import type { TeamDetailDto, TeamSummaryDto } from "@/lib/api/types"
 
@@ -45,9 +46,12 @@ export default async function TeamPage() {
   }
 
   const currentUserId = isDemo ? MOCK_CLINIC.members[0].userId : me.id
+  const canSeeFinance = clinic.role === "OWNER" || clinic.role === "ADMIN"
 
   return (
-    <div className="max-w-4xl space-y-8">
+    <div className="max-w-4xl space-y-6">
+      <ClinicTabs canSeeFinance={canSeeFinance} />
+
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">

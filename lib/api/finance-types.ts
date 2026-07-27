@@ -8,6 +8,8 @@
  * servidor — o front nunca soma centavos (spec §6.3).
  */
 
+import type { TeamRoleName } from "@/lib/api/types"
+
 export type TrendDirection = "up" | "down" | "flat"
 
 /**
@@ -54,4 +56,55 @@ export interface RevenuePointDto {
 export interface FinanceDashboardDto {
   summary: MetricsSummaryDto
   revenueSeries: RevenuePointDto[]
+}
+
+// ---------------------------------------------------------------------------
+// Fase 6.2 — Financeiro da Clínica (`GET /finance/teams/{teamId}/summary`).
+// Consolidado por clínica: líquido total, receita por profissional e plano/fee vigente.
+// Snapshot imutável do Booking projetado no servidor (§4.2 do backlog) — o front nunca soma.
+// ---------------------------------------------------------------------------
+
+/** Receita líquida gerada por um profissional da clínica no período. */
+export interface ProfessionalRevenueDto {
+  userId: string
+  name: string | null
+  /** Papel na clínica (para exibir o selo). */
+  role: TeamRoleName
+  /** Líquido do profissional (Σ NetToProviderCents de bookings PAID). */
+  netCents: number
+  /** Nº de consultas pagas no período. */
+  paidBookingsCount: number
+  /**
+   * Rateio interno ("sua fatia") — v2, depende de `RevenueShareRule` (backlog §Futuro).
+   * Ausente por ora; a coluna é apenas reservada na UI.
+   */
+  shareCents?: number | null
+}
+
+/** Plano/fee vigente da clínica (quanto maior o plano, menor o fee — spec §6.2). */
+export interface TeamPlanDto {
+  /** SOLO | CLINICA | PRO. */
+  planCode: string
+  /** Assentos contratados. */
+  quantity: number
+  /** Fee padrão em basis points (ex.: 249 = 2,49%). */
+  defaultFeeBps: number
+}
+
+/** Resposta consumida por `/dashboard/team/financeiro`. */
+export interface TeamFinanceSummaryDto {
+  teamId: string
+  currency: "BRL"
+  /** Período de referência legível (ex.: "Julho de 2026"). */
+  period: string
+  /** Líquido total da clínica no período. */
+  netTotalCents: number
+  /** Taxas MarcaAí retidas no período. */
+  platformFeesCents: number
+  /** Ticket médio das consultas pagas. */
+  avgTicketCents: number
+  /** Total de consultas pagas no período. */
+  paidBookingsCount: number
+  byProfessional: ProfessionalRevenueDto[]
+  plan: TeamPlanDto
 }
