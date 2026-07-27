@@ -14,9 +14,15 @@
  */
 
 import type { TeamBillingDto } from "@/lib/api/billing-types"
-import { getPlanConfig } from "@/lib/plans/plan-config"
 
-/** Clínica nova em trial: plano base SOLO, mas premium liberado pelos 30 dias de teste. */
+/**
+ * Clínica nova em trial: plano base SOLO, premium liberado pelos 30 dias de teste.
+ *
+ * `usage`/`limits` foram escolhidos para **mostrar os três estados** da barra de uso de uma vez:
+ * agendamentos 84/100 (~84% → âmbar), membros 5/5 (100% → vermelho + CTA de upgrade) e tipos de
+ * consulta 6/10 (60% → Teal). São limites efetivos ilustrativos do trial (o backend é a fonte da
+ * verdade). Ajuste os números para testar outros cenários.
+ */
 export const MOCK_TEAM_BILLING: TeamBillingDto = {
   teamId: "mock-clinic",
   planCode: "SOLO",
@@ -30,10 +36,13 @@ export const MOCK_TEAM_BILLING: TeamBillingDto = {
     daysRemaining: 18,
   },
   usage: {
-    bookingsThisMonth: 23,
-    membersCount: 4,
-    eventTypesCount: 3,
+    bookingsThisMonth: 84,
+    membersCount: 5,
+    eventTypesCount: 6,
   },
-  // Durante o trial, os limites exibidos são os do plano base; o gating premium é liberado pelo trial.
-  limits: getPlanConfig("SOLO").limits,
+  limits: {
+    maxBookingsPerMonth: 100,
+    maxMembers: 5,
+    maxEventTypes: 10,
+  },
 }

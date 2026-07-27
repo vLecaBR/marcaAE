@@ -21,6 +21,8 @@ import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ClinicMembers } from "@/components/team/clinic-members"
 import { ClinicTabs } from "@/components/team/clinic-tabs"
+import { TeamUsageStats } from "@/components/billing/team-usage-stats"
+import { getTeamBilling } from "@/lib/api/billing"
 import { MOCK_CLINIC } from "@/lib/mocks/team"
 import type { TeamDetailDto, TeamSummaryDto } from "@/lib/api/types"
 
@@ -78,6 +80,9 @@ export default async function TeamPage() {
   const currentUserId = isDemo ? MOCK_CLINIC.members[0].userId : me.id
   const canSeeFinance = clinic.role === "OWNER" || clinic.role === "ADMIN"
 
+  // Uso vs. limites do plano (fallback mock §2.4). Só gestores veem billing/limites.
+  const { billing } = await getTeamBilling(clinic.id)
+
   return (
     <div className="max-w-4xl space-y-6">
       <ClinicTabs canSeeFinance={canSeeFinance} />
@@ -122,6 +127,8 @@ export default async function TeamPage() {
           </span>
         )}
       </header>
+
+      {canSeeFinance && <TeamUsageStats billing={billing} />}
 
       <ClinicMembers
         teamId={clinic.id}
