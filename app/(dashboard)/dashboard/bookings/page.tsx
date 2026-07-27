@@ -1,10 +1,13 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { Calendar, Clock, XCircle } from "lucide-react"
+import { Calendar, CalendarClock, CalendarCheck2, CalendarX2, Plus } from "lucide-react"
 import { BookingActions } from "./components/booking-actions"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { requireOnboarded } from "@/lib/auth/guards"
 import { serverApiFetch } from "@/lib/api/http-client"
@@ -131,13 +134,6 @@ export default async function BookingsPage() {
     )
   }
 
-  const emptyState = (icon: React.ReactNode, text: string) => (
-    <div className="p-12 text-center flex flex-col items-center">
-      {icon}
-      <p className="text-muted-foreground text-sm mt-3">{text}</p>
-    </div>
-  )
-
   return (
     <div>
       <div className="flex items-end justify-between mb-6">
@@ -162,33 +158,64 @@ export default async function BookingsPage() {
 
         <TabsContent value="upcoming" className="mt-5 outline-none">
           <Card className="rounded-2xl border-border/60 divide-y divide-border/60 shadow-sm overflow-hidden">
-            {upcoming.length === 0
-              ? emptyState(<Calendar className="text-muted-foreground" size={32} />, "Nenhuma consulta confirmada para o futuro.")
-              : upcoming.map((b) => renderRow(b, "upcoming"))}
+            {upcoming.length === 0 ? (
+              <EmptyState
+                icon={CalendarClock}
+                title="Nenhuma consulta futura por aqui"
+                description="Quando um paciente marcar um horário, a consulta aparece nesta lista. Compartilhe seu link publicando os tipos de consulta que você atende."
+                action={
+                  <Button asChild className="rounded-xl">
+                    <Link href="/dashboard/event-types">
+                      <Plus size={16} /> Criar tipo de consulta
+                    </Link>
+                  </Button>
+                }
+              />
+            ) : (
+              upcoming.map((b) => renderRow(b, "upcoming"))
+            )}
           </Card>
         </TabsContent>
 
         <TabsContent value="pending" className="mt-5 outline-none">
           <Card className="rounded-2xl border-border/60 divide-y divide-border/60 shadow-sm overflow-hidden">
-            {pending.length === 0
-              ? emptyState(<Clock className="text-muted-foreground" size={32} />, "Nenhuma consulta aguardando aprovação.")
-              : pending.map((b) => renderRow(b, "pending"))}
+            {pending.length === 0 ? (
+              <EmptyState
+                icon={CalendarClock}
+                title="Nada aguardando aprovação"
+                description="As consultas que precisam da sua confirmação aparecem aqui. Por enquanto, está tudo em dia."
+              />
+            ) : (
+              pending.map((b) => renderRow(b, "pending"))
+            )}
           </Card>
         </TabsContent>
 
         <TabsContent value="past" className="mt-5 outline-none">
           <Card className="rounded-2xl border-border/60 divide-y divide-border/60 shadow-sm overflow-hidden">
-            {past.length === 0
-              ? emptyState(<Calendar className="text-muted-foreground opacity-50" size={32} />, "Nenhuma consulta passada encontrada.")
-              : past.map((b) => renderRow(b, "past"))}
+            {past.length === 0 ? (
+              <EmptyState
+                icon={CalendarCheck2}
+                title="Ainda sem consultas realizadas"
+                description="Seu histórico de atendimentos concluídos vai aparecer aqui conforme as consultas acontecem."
+              />
+            ) : (
+              past.map((b) => renderRow(b, "past"))
+            )}
           </Card>
         </TabsContent>
 
         <TabsContent value="canceled" className="mt-5 outline-none">
           <Card className="rounded-2xl border-border/60 divide-y divide-border/60 shadow-sm overflow-hidden">
-            {canceled.length === 0
-              ? emptyState(<XCircle className="text-muted-foreground" size={32} />, "Nenhuma consulta cancelada.")
-              : canceled.map((b) => renderRow(b, "canceled"))}
+            {canceled.length === 0 ? (
+              <EmptyState
+                icon={CalendarX2}
+                title="Nenhuma consulta cancelada"
+                description="Consultas canceladas ou expiradas sem confirmação ficam registradas aqui."
+              />
+            ) : (
+              canceled.map((b) => renderRow(b, "canceled"))
+            )}
           </Card>
         </TabsContent>
       </Tabs>

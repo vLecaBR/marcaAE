@@ -11,7 +11,8 @@ import { EventTypeForm } from "./event-type-form"
 import type { EventTypeInput } from "@/lib/validators/event-type"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Plus, Layers } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
+import { Plus, CalendarPlus } from "lucide-react"
 
 type EventType = {
   id: string
@@ -61,17 +62,17 @@ export function EventTypeList({ eventTypes, username, teams = [] }: EventTypeLis
       </div>
 
       {eventTypes.length === 0 ? (
-        <Card className="mt-4 rounded-2xl border-dashed border-2 border-border py-16 text-center shadow-none">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-            <Layers size={20} />
-          </div>
-          <h3 className="text-sm font-medium">Nenhum serviço cadastrado</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Crie o primeiro tipo de consulta para começar a receber agendamentos.
-          </p>
-          <Button onClick={() => setIsFormOpen(true)} variant="outline" className="mt-4 rounded-xl gap-1.5">
-            <Plus size={15} /> Criar serviço
-          </Button>
+        <Card className="mt-4 rounded-2xl border-2 border-dashed border-border shadow-none">
+          <EmptyState
+            icon={CalendarPlus}
+            title="Nenhum serviço cadastrado ainda"
+            description="Crie seu primeiro tipo de consulta — com duração, local e preço — para começar a receber agendamentos."
+            action={
+              <Button onClick={() => setIsFormOpen(true)} className="rounded-xl gap-1.5">
+                <Plus size={16} /> Criar primeira consulta
+              </Button>
+            }
+          />
         </Card>
       ) : (
         <Card className="mt-4 rounded-2xl border-border/60 shadow-sm overflow-hidden divide-y divide-border/60">

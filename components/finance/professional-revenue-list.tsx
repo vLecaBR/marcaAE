@@ -6,7 +6,9 @@
  * `RevenueShareRule` (v2, backlog §Futuro). Valores em centavos → `Intl` pt-BR/BRL.
  */
 
+import { TrendingUp } from "lucide-react"
 import { formatBRLCents } from "@/lib/utils"
+import { EmptyState } from "@/components/ui/empty-state"
 import { RoleBadge } from "@/components/team/role-badge"
 import type { TeamFinanceSummaryDto } from "@/lib/api/finance-types"
 
@@ -16,6 +18,7 @@ function initialOf(name: string | null, fallback: string): string {
 
 export function ProfessionalRevenueList({ summary }: { summary: TeamFinanceSummaryDto }) {
   const rows = summary.byProfessional
+  const hasData = summary.paidBookingsCount > 0 && rows.length > 0
 
   return (
     <div className="rounded-2xl border border-border/60 bg-card shadow-sm">
@@ -28,6 +31,13 @@ export function ProfessionalRevenueList({ summary }: { summary: TeamFinanceSumma
         </div>
       </div>
 
+      {!hasData ? (
+        <EmptyState
+          icon={TrendingUp}
+          title="Sem receita neste período"
+          description={`Ainda não há consultas pagas em ${summary.period.toLowerCase()}. Assim que os pagamentos entrarem, o líquido de cada profissional aparece aqui.`}
+        />
+      ) : (
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -93,6 +103,7 @@ export function ProfessionalRevenueList({ summary }: { summary: TeamFinanceSumma
           </tfoot>
         </table>
       </div>
+      )}
     </div>
   )
 }

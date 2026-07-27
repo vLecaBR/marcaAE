@@ -12,11 +12,13 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { FlaskConical, ExternalLink, Building2, Layers } from "lucide-react"
+import { FlaskConical, ExternalLink, Building2, Layers, Hospital, Plus } from "lucide-react"
 import { requireOnboarded } from "@/lib/auth/guards"
 import { serverApiFetch } from "@/lib/api/http-client"
 import { endpoints } from "@/lib/api/endpoints"
 import { isApiError } from "@/lib/api/problem-details"
+import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 import { ClinicMembers } from "@/components/team/clinic-members"
 import { ClinicTabs } from "@/components/team/clinic-tabs"
 import { MOCK_CLINIC } from "@/lib/mocks/team"
@@ -30,6 +32,9 @@ export default async function TeamPage() {
   let clinic: TeamDetailDto = MOCK_CLINIC
   let isDemo = true
   let otherClinics = 0
+  // Distingue "a API respondeu e o usuário não tem clínica" (→ onboarding "Crie sua clínica")
+  // de "a API está indisponível" (→ mantém a demonstração, tela sempre renderizável).
+  let hasNoClinic = false
 
   try {
     const teams =
@@ -39,10 +44,35 @@ export default async function TeamPage() {
       clinic = await serverApiFetch<TeamDetailDto>(endpoints.teams.byId(primary.id))
       isDemo = false
       otherClinics = teams.length - 1
+    } else {
+      hasNoClinic = true
     }
   } catch (err) {
     if (isApiError(err) && err.kind === "unauthorized") redirect("/login")
-    // Sem clínica populada ou backend indisponível → mantém a demonstração.
+    // Backend indisponível → mantém a demonstração.
+  }
+
+  // Onboarding: usuário real ainda sem clínica → empty state acolhedor (spec §7.2 / §8.2).
+  if (hasNoClinic) {
+    return (
+      <div className="max-w-4xl space-y-6">
+        <ClinicTabs canSeeFinance={false} />
+        <div className="rounded-2xl border border-border/60 bg-card shadow-sm">
+          <EmptyState
+            icon={Hospital}
+            title="Crie sua clínica"
+            description="Reúna sua equipe em um só lugar: convide profissionais, defina papéis e acompanhe o financeiro compartilhado. Toda nova clínica começa com 30 dias de teste grátis."
+            action={
+              <Button asChild className="rounded-xl gap-1.5">
+                <Link href="/dashboard/teams">
+                  <Plus size={16} /> Crie sua clínica
+                </Link>
+              </Button>
+            }
+          />
+        </div>
+      </div>
+    )
   }
 
   const currentUserId = isDemo ? MOCK_CLINIC.members[0].userId : me.id
