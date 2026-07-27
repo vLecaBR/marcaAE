@@ -38,7 +38,9 @@ export function ProfessionalRevenueList({ summary }: { summary: TeamFinanceSumma
           description={`Ainda não há consultas pagas em ${summary.period.toLowerCase()}. Assim que os pagamentos entrarem, o líquido de cada profissional aparece aqui.`}
         />
       ) : (
-      <div className="overflow-x-auto">
+      <>
+      {/* sm+: tabela densa. <sm: cards empilhados (spec §7.3). */}
+      <div className="hidden overflow-x-auto sm:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border/60 text-xs text-muted-foreground">
@@ -103,6 +105,40 @@ export function ProfessionalRevenueList({ summary }: { summary: TeamFinanceSumma
           </tfoot>
         </table>
       </div>
+
+      {/* Mobile (<sm): cada profissional como card empilhado — sem scroll horizontal. */}
+      <div className="divide-y divide-border/60 sm:hidden">
+        {rows.map((p) => (
+          <div key={p.userId} className="flex items-center gap-3 px-5 py-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-primary to-care text-xs font-semibold text-white">
+              {initialOf(p.name, "?")}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium">{p.name || "Convite pendente"}</p>
+              <RoleBadge role={p.role} className="mt-0.5" />
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="font-semibold tabular-nums">{formatBRLCents(p.netCents)}</p>
+              <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
+                {p.paidBookingsCount} {p.paidBookingsCount === 1 ? "consulta" : "consultas"}
+              </p>
+            </div>
+          </div>
+        ))}
+        <div className="flex items-center justify-between bg-muted/20 px-5 py-4 font-medium">
+          <span>Total da clínica</span>
+          <div className="shrink-0 text-right">
+            <p className="font-semibold tabular-nums text-brand-primary">
+              {formatBRLCents(summary.netTotalCents)}
+            </p>
+            <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
+              {summary.paidBookingsCount}{" "}
+              {summary.paidBookingsCount === 1 ? "consulta" : "consultas"}
+            </p>
+          </div>
+        </div>
+      </div>
+      </>
       )}
     </div>
   )

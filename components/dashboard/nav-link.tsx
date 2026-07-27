@@ -47,7 +47,7 @@ export function NavLink({
       className={cn(
         "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition",
         isActive
-          ? "bg-violet-50 text-primary dark:bg-violet-500/10 dark:text-violet-400"
+          ? "bg-brand-primary/10 text-brand-primary font-medium dark:bg-brand-primary/15"
           : "text-muted-foreground hover:bg-muted hover:text-foreground"
       )}
     >

@@ -78,9 +78,9 @@ export function TeamMembersList({ teamId, members, currentUserRole, currentUserI
 
       <div className="divide-y divide-zinc-800/60">
         {members.map((member) => (
-          <div key={member.id} className="flex items-center justify-between px-6 py-4">
-            <div className="flex items-center gap-4">
-              <div className="h-10 w-10 overflow-hidden rounded-full bg-zinc-800 ring-2 ring-zinc-800/50">
+          <div key={member.id} className="flex items-center justify-between gap-3 px-6 py-4">
+            <div className="flex min-w-0 items-center gap-4">
+              <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-zinc-800 ring-2 ring-zinc-800/50">
                 {member.user.image ? (
                   <img src={member.user.image} alt="" className="h-full w-full object-cover" />
                 ) : (
@@ -89,16 +89,16 @@ export function TeamMembersList({ teamId, members, currentUserRole, currentUserI
                   </div>
                 )}
               </div>
-              <div>
-                <p className="text-sm font-medium text-white">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-white">
                   {member.user.name || "Usuário sem nome"}
                   {member.userId === currentUserId && <span className="ml-2 text-xs text-zinc-500">(Você)</span>}
                 </p>
-                <p className="text-xs text-zinc-400">{member.user.email}</p>
+                <p className="truncate text-xs text-zinc-400">{member.user.email}</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex shrink-0 items-center gap-2 sm:gap-4">
               <div className="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/50 px-2.5 py-1 text-xs font-medium text-zinc-300">
                 {getRoleIcon(member.role)}
                 {getRoleLabel(member.role)}
@@ -122,7 +122,7 @@ export function TeamMembersList({ teamId, members, currentUserRole, currentUserI
         <div className="border-t border-zinc-800 bg-zinc-950/50 px-6 py-5 rounded-b-2xl">
           <h4 className="text-sm font-medium text-white mb-4">Convidar novo membro</h4>
           
-          <form onSubmit={handleInvite} className="flex items-start gap-3">
+          <form onSubmit={handleInvite} className="flex flex-col gap-3 sm:flex-row sm:items-start">
             <div className="flex-1 space-y-1.5">
               <input
                 type="email"
