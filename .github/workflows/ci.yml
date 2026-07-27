@@ -24,9 +24,6 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Generate Prisma Client
-        run: npx prisma generate
-
       - name: Run ESLint
         run: npm run lint
 
@@ -36,7 +33,7 @@ jobs:
       - name: Build Check
         run: npm run build
         env:
-          DATABASE_URL: postgres://user:pass@localhost:5432/db
-          AUTH_SECRET: mock-secret
-          AUTH_GOOGLE_ID: mock-id
-          AUTH_GOOGLE_SECRET: mock-secret
+          # O front é 100% cliente da API .NET — sem Prisma/NextAuth (ver future-phases-spec §1).
+          NEXT_PUBLIC_API_URL: http://localhost:5080/api/v1
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_mock
