@@ -116,6 +116,27 @@ export function formatFeeBps(bps: number): string {
   return `${(bps / 100).toFixed(2).replace(".", ",")}%`
 }
 
+/**
+ * Linhas de "o que está incluso" de um plano — limites (do mapa) + features premium.
+ * Fonte única de copy das pricing tables (pública e do dashboard), 100% derivada de `PLAN_CONFIG`.
+ */
+export function planFeatureLines(plan: PlanConfig): string[] {
+  const { maxBookingsPerMonth, maxMembers, maxEventTypes } = plan.limits
+  const members =
+    maxMembers === null
+      ? "Profissionais ilimitados"
+      : `${maxMembers} ${maxMembers === 1 ? "profissional" : "profissionais"}`
+  return [
+    maxBookingsPerMonth === null
+      ? "Agendamentos ilimitados"
+      : `${maxBookingsPerMonth} agendamentos por mês`,
+    members,
+    maxEventTypes === null ? "Tipos de consulta ilimitados" : `${maxEventTypes} tipos de consulta`,
+    `Taxa de ${formatFeeBps(plan.feeBps)} por consulta`,
+    ...plan.premiumFeatures.map((f) => PREMIUM_FEATURE_LABELS[f]),
+  ]
+}
+
 /** Plano base para onde o trial faz downgrade ao expirar (§8.2). */
 export const BASE_PLAN_CODE: PlanCode = "SOLO"
 

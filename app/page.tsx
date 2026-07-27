@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Logo } from "@/components/ui/logo"
+import { PricingSection } from "@/components/marketing/pricing-section"
 import {
   ArrowRight,
   Calendar,
@@ -151,6 +152,9 @@ export default async function RootPage() {
             ))}
           </div>
         </section>
+
+        {/* Pricing (§8.1 — consome PLAN_CONFIG) */}
+        <PricingSection />
 
         {/* CTA */}
         <section className="max-w-5xl mx-auto px-6 pb-24">

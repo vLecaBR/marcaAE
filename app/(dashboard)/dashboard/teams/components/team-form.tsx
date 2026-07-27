@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { Sparkles } from "lucide-react"
 import { teamSchema, type TeamInput } from "@/lib/validators/team"
 import { upsertTeamAction } from "@/lib/actions/team"
 import { cn } from "@/lib/utils"
@@ -107,6 +108,18 @@ export function TeamForm({ open, onClose, defaultValues }: TeamFormProps) {
           {serverError && (
             <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3">
               <p className="text-sm text-rose-400">{serverError}</p>
+            </div>
+          )}
+
+          {/* Promessa de trial (§8.2): conecta o marketing à criação da clínica. Só ao criar. */}
+          {!isEditing && (
+            <div className="flex items-start gap-2.5 rounded-xl border border-brand-primary/30 bg-brand-primary/10 px-4 py-3">
+              <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-brand-primary" aria-hidden="true" />
+              <p className="text-sm text-zinc-200">
+                Sua clínica começa com{" "}
+                <span className="font-semibold text-brand-primary">30 dias de teste grátis</span> —
+                todos os recursos premium liberados, sem cartão de crédito.
+              </p>
             </div>
           )}
 

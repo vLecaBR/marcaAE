@@ -21,10 +21,8 @@ import { formatBRLCents, cn } from "@/lib/utils"
 import {
   PLAN_CONFIG,
   PLAN_ORDER,
-  PREMIUM_FEATURE_LABELS,
   getPlanConfig,
-  formatFeeBps,
-  type PlanConfig,
+  planFeatureLines,
 } from "@/lib/plans/plan-config"
 import type { TeamSummaryDto } from "@/lib/api/types"
 
@@ -32,23 +30,6 @@ export const metadata: Metadata = { title: "Planos · MarcaAí" }
 
 /** Plano em destaque na pricing table. */
 const RECOMMENDED_PLAN = "CLINICA"
-
-/** Linhas de "o que está incluso" — limites (do mapa) + features premium do plano. */
-function featureLines(plan: PlanConfig): string[] {
-  const { maxBookingsPerMonth, maxMembers, maxEventTypes } = plan.limits
-  const limit = (n: number | null, unit: string, singular?: string) =>
-    n === null ? `${unit} ilimitados` : `${n} ${n === 1 ? (singular ?? unit) : unit}`
-
-  return [
-    maxBookingsPerMonth === null
-      ? "Agendamentos ilimitados"
-      : `${maxBookingsPerMonth} agendamentos por mês`,
-    limit(maxMembers, "profissionais", "profissional"),
-    maxEventTypes === null ? "Tipos de consulta ilimitados" : `${maxEventTypes} tipos de consulta`,
-    `Taxa de ${formatFeeBps(plan.feeBps)} por consulta`,
-    ...plan.premiumFeatures.map((f) => PREMIUM_FEATURE_LABELS[f]),
-  ]
-}
 
 export default async function PlansPage() {
   await requireOnboarded()
@@ -153,7 +134,7 @@ export default async function PlansPage() {
               </div>
 
               <ul className="mt-5 flex-1 space-y-2.5">
-                {featureLines(plan).map((line) => (
+                {planFeatureLines(plan).map((line) => (
                   <li key={line} className="flex items-start gap-2 text-sm text-foreground/80">
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-primary" />
                     {line}
