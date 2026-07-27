@@ -37,6 +37,36 @@ export interface PublicProfileWithEventsDto {
   eventTypes: PublicEventTypeDto[]
 }
 
+/** Provedores aceitos por `POST /bookings/{uid}/pay` (spec §3.3). */
+export type PaymentProviderName = "MERCADO_PAGO" | "STRIPE"
+
+/** Estados de pagamento do snapshot do Booking (spec §6.4). */
+export type PaymentStatusName =
+  | "PENDING" | "UNPAID" | "PAID" | "PARTIALLY_REFUNDED" | "REFUNDED" | "FAILED"
+
+/**
+ * `POST /bookings/{uid}/pay` → intenção de pagamento (spec §3.3).
+ * Cartão: `clientSecret` (confirmado via Stripe.js/Elements).
+ * PIX: `pixQrCode` (copia-e-cola) + `pixQrCodeBase64` (imagem) + `pixTicketUrl`.
+ */
+export interface PaymentIntentDto {
+  provider: PaymentProviderName
+  clientSecret?: string | null
+  pixQrCode?: string | null
+  pixQrCodeBase64?: string | null
+  pixTicketUrl?: string | null
+  providerPaymentId: string
+  amountCents: number
+  applicationFeeCents: number
+}
+
+/** Resposta do polling de status (subset de `GET /bookings/{uid}`). */
+export interface BookingStatusPollDto {
+  uid: string
+  status: string
+  paymentStatus: PaymentStatusName
+}
+
 /** `GET /bookings/{uid}` → detalhe da consulta (confirmação). */
 export interface BookingDetailDto {
   uid: string

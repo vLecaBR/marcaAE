@@ -30,6 +30,7 @@ interface BookingFormProps {
   eventType: {
     id: string; title: string; duration: number
     locationType: string; requiresConfirm: boolean
+    price?: number | null
     questions?: any[]
   }
   owner: { id: string; name: string | null }
@@ -93,6 +94,9 @@ export function BookingForm({
       setResult({ status: "conflict" })
     } else if (!res.ok) {
       setResult({ status: "error", message: json.message ?? json.error ?? "Erro ao agendar." })
+    } else if (eventType.price && json.uid) {
+      // Consulta paga → checkout dedicado (PIX × Cartão + polling de confirmação).
+      window.location.href = `/booking/${json.uid}/pay`
     } else {
       setResult({
         status: "success",

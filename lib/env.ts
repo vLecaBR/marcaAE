@@ -10,6 +10,8 @@ const envSchema = z.object({
   NEXT_PUBLIC_API_URL: z.string().url().default("http://localhost:5080"),
   // URL pública do próprio app (usada em links de marketing/QR).
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
+  // Chave publicável do Stripe (client-side, Elements). Opcional até ativar cartão.
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
 })
 
 const parseResult = envSchema.safeParse(process.env)
