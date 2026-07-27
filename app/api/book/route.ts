@@ -1,27 +1,67 @@
-import { NextResponse } from "next/server"
-import { createBooking } from "@/lib/actions/booking"
+/**
+ * Criação de agendamento (público) — proxy para `POST {API}/bookings`.
+ * Substitui `createBooking` (Prisma). Mapeia o corpo para `CreateBookingRequest` da API e
+ * repassa a resposta (incluindo `pix` quando o serviço tem preço).
+ *
+ * Gap: `responses` (perguntas) e `recurringCount` ainda não são aceitos pela API — enviados
+ * apenas quando o backend suportar (ver docs/backend-backlog.md).
+ */
 
-export async function POST(req: Request) {
+import { NextRequest, NextResponse } from "next/server"
+import { rawApiFetch } from "@/lib/api/http-client"
+import { endpoints } from "@/lib/api/endpoints"
+import { isApiError } from "@/lib/api/problem-details"
+
+export const dynamic = "force-dynamic"
+export const runtime = "nodejs"
+
+interface BookBody {
+  ownerId: string
+  eventTypeId: string
+  guestName: string
+  guestEmail: string
+  guestPhone?: string | null
+  guestNotes?: string | null
+  startTimeUtc: string
+  endTimeUtc: string
+  guestTimeZone: string
+}
+
+export async function POST(req: NextRequest): Promise<NextResponse> {
+  let body: BookBody
   try {
-    const body = await req.json()
-    const result = await createBooking(body)
+    body = (await req.json()) as BookBody
+  } catch {
+    return NextResponse.json({ status: "error", message: "Corpo inválido." }, { status: 400 })
+  }
 
-    if (result.status === "success") {
-      return NextResponse.json(result)
-    }
+  const payload = {
+    ownerId: body.ownerId,
+    eventTypeId: body.eventTypeId,
+    guestName: body.guestName,
+    guestEmail: body.guestEmail,
+    guestPhone: body.guestPhone ?? null,
+    guestNotes: body.guestNotes ?? null,
+    startTimeUtc: body.startTimeUtc,
+    endTimeUtc: body.endTimeUtc,
+    guestTimeZone: body.guestTimeZone,
+  }
 
-    // Mapping specific errors to HTTP status codes
-    let status = 400
-    if (result.status === "not_found") status = 404
-    if (result.status === "conflict") status = 409
-    if (result.status === "internal") status = 500
-
-    return NextResponse.json(result, { status })
+  try {
+    const result = await rawApiFetch<Record<string, unknown>>(endpoints.bookings.root, {
+      method: "POST",
+      body: payload,
+    })
+    return NextResponse.json({ status: "success", ...result.data }, { status: 201 })
   } catch (err) {
-    console.error("[POST /api/book]", err)
-    return NextResponse.json(
-      { status: "internal", message: "Erro interno no servidor." },
-      { status: 500 }
-    )
+    if (isApiError(err)) {
+      const status =
+        err.kind === "conflict" ? "conflict" : err.kind === "not_found" ? "not_found" : "error"
+      return NextResponse.json(
+        { status, message: err.problem.detail ?? "Erro ao agendar." },
+        { status: err.status || 400 },
+      )
+    }
+    throw err
   }
 }

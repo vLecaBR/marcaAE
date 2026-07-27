@@ -1,49 +1,18 @@
 import { z } from "zod"
 
+/**
+ * Variáveis de ambiente do frontend. Pós-extermínio do Prisma/NextAuth, o Next é um cliente puro
+ * da API .NET — não há mais banco, segredo de sessão ou chaves de gateway no front. Tudo isso
+ * vive no backend. Restam apenas as URLs públicas.
+ */
 const envSchema = z.object({
-  DATABASE_URL: z.string().url(),
-  AUTH_SECRET: z.string().min(1),
-  AUTH_URL: z.string().url().optional(),
-
-  // Base da API .NET consumida pelo front. Público (NEXT_PUBLIC_) para uso isomórfico,
-  // mas as chamadas autenticadas passam sempre pelo BFF (server-side) — ver ADR-0001.
+  // Base da API .NET consumida pelo front (via BFF server-side / proxies públicos).
   NEXT_PUBLIC_API_URL: z.string().url().default("http://localhost:5080"),
-  
-  AUTH_GOOGLE_ID: z.string().min(1),
-  AUTH_GOOGLE_SECRET: z.string().min(1),
-  
-  MERCADOPAGO_ACCESS_TOKEN: z.string().min(1).optional(),
-  MERCADOPAGO_WEBHOOK_SECRET: z.string().min(1).optional(),
-  STRIPE_SECRET_KEY: z.string().min(1).optional(),
-  STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
-  
-  RESEND_API_KEY: z.string().min(1).optional(),
-}).superRefine((data, ctx) => {
-  if (data.STRIPE_SECRET_KEY && !data.STRIPE_WEBHOOK_SECRET) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "STRIPE_WEBHOOK_SECRET é obrigatório quando a integração Stripe está ativada",
-      path: ["STRIPE_WEBHOOK_SECRET"],
-    });
-  }
-});
+  // URL pública do próprio app (usada em links de marketing/QR).
+  NEXT_PUBLIC_APP_URL: z.string().url().optional(),
+})
 
-let envVars = process.env;
-
-// Ignora validação rigorosa durante o build para não quebrar a compilação inicial da Vercel
-// caso as chaves ainda não tenham sido configuradas no painel.
-if (!process.env.DATABASE_URL && (process.env.npm_lifecycle_event === "build" || process.env.VERCEL)) {
-  console.warn("⚠️  Aviso: Usando variáveis de ambiente de MOCK para permitir o Build. Você precisa preencher as variáveis reais na aba Settings > Environment Variables da Vercel.");
-  envVars = {
-    ...process.env,
-    DATABASE_URL: process.env.DATABASE_URL || "postgres://user:pass@localhost:5432/mockdb",
-    AUTH_SECRET: process.env.AUTH_SECRET || "mock-secret",
-    AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID || "mock-id",
-    AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET || "mock-secret",
-  } as any;
-}
-
-const parseResult = envSchema.safeParse(envVars)
+const parseResult = envSchema.safeParse(process.env)
 
 if (!parseResult.success) {
   console.error("❌ Variáveis de ambiente inválidas:", parseResult.error.flatten().fieldErrors)

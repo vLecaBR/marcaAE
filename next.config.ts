@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["@prisma/client"],
   typescript: {
     // !! AVISO !!
     // Ignoramos o typechecking na Vercel para acelerar o build e evitar erros de falta de memória (OOM) no plano Hobby (1GB RAM).

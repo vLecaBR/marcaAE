@@ -1,62 +1,46 @@
 "use server"
 
-import { z } from "zod"
-import { auth } from "@/auth"
-import { prisma } from "@/lib/prisma"
-import { profileSchema } from "@/lib/validators/onboarding"
-import { revalidatePath } from "next/cache"
+/**
+ * Perfil e conclusão de onboarding — proxy fino para a API .NET (Fase 5). Sem Prisma/NextAuth.
+ * `PUT /me/profile` e `POST /me/onboarding/complete`.
+ *
+ * Observação: a rotação de token (`/auth/refresh`) após salvar o perfil deve ser disparada pelo
+ * client (o cookie só pode ser reescrito num Route Handler) — ver `components/.../profile-form`.
+ */
 
-type ActionResult<T = void> =
-  | { success: true; data: T }
-  | { success: false; error: string }
+import { z } from "zod"
+import { revalidatePath } from "next/cache"
+import { profileSchema } from "@/lib/validators/onboarding"
+import { endpoints } from "@/lib/api/endpoints"
+import { callApi, type ActionResult } from "@/lib/api/action-helpers"
 
 export async function completeProfileAction(
-  raw: z.infer<typeof profileSchema>
+  raw: z.infer<typeof profileSchema>,
 ): Promise<ActionResult<{ username: string }>> {
-  const session = await auth()
-  if (!session?.user?.id) {
-    return { success: false, error: "Não autorizado." }
-  }
-
   const parsed = profileSchema.safeParse(raw)
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0].message }
   }
 
   const { name, username, timeZone, bio, theme, brandColor } = parsed.data
-
-  // Verifica unicidade do username (exceto o próprio user)
-  const existing = await prisma.user.findFirst({
-    where: {
-      username,
-      NOT: { id: session.user.id },
+  const result = await callApi(
+    endpoints.me.profile,
+    {
+      method: "PUT",
+      body: { name, username, timeZone, bio: bio ?? null, theme, brandColor: brandColor ?? null },
     },
-  })
-
-  if (existing) {
-    return { success: false, error: "Este username já está em uso." }
-  }
-
-  await prisma.user.update({
-    where: { id: session.user.id },
-    data: { name, username, timeZone, bio: bio ?? null, theme: theme as any, brandColor: brandColor ?? null },
-  })
-
-  revalidatePath("/onboarding")
-  return { success: true, data: { username } }
+    "Erro ao atualizar o perfil.",
+  )
+  if (result.success) revalidatePath("/settings/profile")
+  return result.success ? { success: true, data: { username } } : result
 }
 
 export async function completeOnboardingAction(): Promise<ActionResult> {
-  const session = await auth()
-  if (!session?.user?.id) {
-    return { success: false, error: "Não autorizado." }
-  }
-
-  await prisma.user.update({
-    where: { id: session.user.id },
-    data: { onboarded: true },
-  })
-
-  revalidatePath("/dashboard")
-  return { success: true, data: undefined }
+  const result = await callApi(
+    endpoints.me.onboardingComplete,
+    { method: "POST" },
+    "Erro ao concluir o onboarding.",
+  )
+  if (result.success) revalidatePath("/dashboard")
+  return result.success ? { success: true, data: undefined } : result
 }

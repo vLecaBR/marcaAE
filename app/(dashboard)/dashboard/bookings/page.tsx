@@ -1,18 +1,17 @@
-import { auth } from "@/auth"
-import { redirect } from "next/navigation"
-import { prisma } from "@/lib/prisma"
+import type { Metadata } from "next"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { cn } from "@/lib/utils"
-import { Calendar, Clock, Video, MoreHorizontal, XCircle } from "lucide-react"
+import { Calendar, Clock, XCircle } from "lucide-react"
 import { BookingActions } from "./components/booking-actions"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import type { Metadata } from "next"
+import { requireOnboarded } from "@/lib/auth/guards"
+import { serverApiFetch } from "@/lib/api/http-client"
+import { endpoints } from "@/lib/api/endpoints"
+import type { BookingListItemDto } from "@/lib/api/types"
 
-export const metadata: Metadata = { title: "Agendamentos | Marca AI" }
+export const metadata: Metadata = { title: "Agendamentos" }
 
 const COLOR_MAP: Record<string, string> = {
   SLATE: "from-slate-500 to-slate-600",
@@ -26,54 +25,76 @@ const COLOR_MAP: Record<string, string> = {
   FUCHSIA: "from-fuchsia-500 to-fuchsia-600",
 }
 
+type Row = {
+  uid: string
+  guestName: string
+  guestEmail: string
+  status: string
+  startTime: Date
+  eventType: { title: string; color: string; duration: number }
+}
+
+/**
+ * Agendamentos do profissional — via API .NET (`GET /bookings`).
+ * Normaliza `startTime` (ISO string → Date) para a formatação com date-fns.
+ */
 export default async function BookingsPage() {
-  const session = await auth()
-  if (!session?.user?.id) redirect("/login")
+  await requireOnboarded()
 
-  const bookings = await prisma.booking.findMany({
-    where: { userId: session.user.id },
-    orderBy: { startTime: "desc" },
-    include: {
-      eventType: {
-        select: { title: true, color: true, locationType: true, duration: true },
-      },
+  const list = await serverApiFetch<BookingListItemDto[]>(endpoints.bookings.root).catch(
+    () => [] as BookingListItemDto[],
+  )
+
+  const now = new Date()
+  const bookings: Row[] = (list ?? []).map((b) => ({
+    uid: b.uid,
+    guestName: b.guestName,
+    guestEmail: b.guestEmail,
+    status: b.status,
+    startTime: new Date(b.startTime),
+    eventType: {
+      title: b.eventType?.title ?? "Consulta",
+      color: b.eventType?.color ?? "TEAL",
+      duration: b.eventType?.duration ?? 0,
     },
-  })
+  }))
 
-  // Separa os bookings
-  const pending = bookings.filter((b: any) => b.status === "PENDING" && b.startTime > new Date())
-  const upcoming = bookings.filter((b: any) => b.status === "CONFIRMED" && b.startTime > new Date()).sort((a: any, b: any) => a.startTime.getTime() - b.startTime.getTime())
-  const past = bookings.filter((b: any) => b.status === "CONFIRMED" && b.startTime <= new Date())
-  const canceled = bookings.filter((b: any) => b.status === "CANCELLED" || (b.status === "PENDING" && b.startTime <= new Date()))
+  const pending = bookings.filter((b) => b.status === "PENDING" && b.startTime > now)
+  const upcoming = bookings
+    .filter((b) => b.status === "CONFIRMED" && b.startTime > now)
+    .sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
+  const past = bookings.filter((b) => b.status === "CONFIRMED" && b.startTime <= now)
+  const canceled = bookings.filter(
+    (b) => b.status === "CANCELLED" || (b.status === "PENDING" && b.startTime <= now),
+  )
 
-  const getInitials = (name: string) => name.split(" ").slice(0, 2).map(n => n[0]).join("").toUpperCase()
+  const getInitials = (name: string) =>
+    name.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase()
 
-  const renderBookingRow = (b: any, type: "upcoming" | "pending" | "past" | "canceled") => {
-    const isConfirmed = b.status === "CONFIRMED"
-    const isPending = b.status === "PENDING"
+  const renderRow = (b: Row, type: "upcoming" | "pending" | "past" | "canceled") => {
     const isCanceled = b.status === "CANCELLED"
-    
-    let badgeText = ""
-    let badgeClass = ""
-    
+    const isPending = b.status === "PENDING"
+
+    let badgeText = "Confirmado"
+    let badgeClass = "bg-care/10 text-care border-care/20"
     if (isCanceled) {
       badgeText = "Cancelado"
-      badgeClass = "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 border-rose-200 dark:border-rose-900"
+      badgeClass = "bg-destructive/10 text-destructive border-destructive/20"
     } else if (isPending) {
       badgeText = "Pendente"
-      badgeClass = "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-900"
+      badgeClass = "bg-warning/10 text-warning border-warning/20"
     } else if (type === "past") {
       badgeText = "Passado"
-      badgeClass = "bg-slate-50 text-slate-700 dark:bg-slate-900/30 dark:text-slate-400 border-slate-200 dark:border-slate-800"
-    } else {
-      badgeText = "Confirmado"
-      badgeClass = "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900"
+      badgeClass = "bg-muted text-muted-foreground border-border"
     }
 
     return (
-      <div key={b.id} className="p-5 flex flex-col sm:flex-row sm:items-center gap-4 hover:bg-muted/30 transition">
+      <div key={b.uid} className="p-5 flex flex-col sm:flex-row sm:items-center gap-4 hover:bg-muted/30 transition">
         <div className="flex items-center gap-4 flex-1 min-w-0">
-          <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${COLOR_MAP[b.eventType.color] || "from-violet-500 to-fuchsia-500"} shrink-0 flex items-center justify-center text-white text-sm`} style={{ fontWeight: 600 }}>
+          <div
+            className={`w-11 h-11 rounded-full bg-gradient-to-br ${COLOR_MAP[b.eventType.color] || "from-brand-primary to-care"} shrink-0 flex items-center justify-center text-white text-sm`}
+            style={{ fontWeight: 600 }}
+          >
             {getInitials(b.guestName)}
           </div>
           <div className="flex-1 min-w-0">
@@ -84,22 +105,23 @@ export default async function BookingsPage() {
               </Badge>
             </div>
             <div className="text-xs text-muted-foreground mt-0.5 truncate">{b.guestEmail}</div>
-            
-            {/* Show on mobile, hide on desktop */}
-            <div className="sm:hidden text-sm text-muted-foreground mt-1 truncate">{b.eventType.title} · {b.eventType.duration}m</div>
+            <div className="sm:hidden text-sm text-muted-foreground mt-1 truncate">
+              {b.eventType.title} · {b.eventType.duration}m
+            </div>
           </div>
         </div>
-        
-        {/* Show on desktop, hide on mobile */}
-        <div className="hidden sm:block text-sm text-muted-foreground w-1/4 truncate">{b.eventType.title} · {b.eventType.duration}m</div>
-        
+
+        <div className="hidden sm:block text-sm text-muted-foreground w-1/4 truncate">
+          {b.eventType.title} · {b.eventType.duration}m
+        </div>
+
         <div className="text-sm flex items-center gap-1.5 sm:w-1/4 text-muted-foreground">
-          <Calendar size={14} className="shrink-0" /> 
+          <Calendar size={14} className="shrink-0" />
           <span className="truncate">
             {format(b.startTime, "dd MMM", { locale: ptBR })} · {format(b.startTime, "HH:mm")}
           </span>
         </div>
-        
+
         <div className="flex items-center gap-2 mt-2 sm:mt-0">
           {(type === "upcoming" || type === "pending") && (
             <BookingActions uid={b.uid} status={b.status} />
@@ -109,12 +131,19 @@ export default async function BookingsPage() {
     )
   }
 
+  const emptyState = (icon: React.ReactNode, text: string) => (
+    <div className="p-12 text-center flex flex-col items-center">
+      {icon}
+      <p className="text-muted-foreground text-sm mt-3">{text}</p>
+    </div>
+  )
+
   return (
     <div>
       <div className="flex items-end justify-between mb-6">
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: -0.5 }}>Meus agendamentos</h1>
-          <p className="text-muted-foreground mt-1">Todas as suas reuniões passadas e futuras.</p>
+          <p className="text-muted-foreground mt-1">Todas as suas consultas passadas e futuras.</p>
         </div>
       </div>
 
@@ -124,7 +153,7 @@ export default async function BookingsPage() {
           <TabsTrigger value="pending" className="rounded-lg shrink-0">
             Pendentes
             {pending.length > 0 && (
-              <span className="ml-1.5 flex h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+              <span className="ml-1.5 flex h-2 w-2 rounded-full bg-warning animate-pulse" />
             )}
           </TabsTrigger>
           <TabsTrigger value="past" className="rounded-lg shrink-0">Passados</TabsTrigger>
@@ -133,53 +162,33 @@ export default async function BookingsPage() {
 
         <TabsContent value="upcoming" className="mt-5 outline-none">
           <Card className="rounded-2xl border-border/60 divide-y divide-border/60 shadow-sm overflow-hidden">
-            {upcoming.length === 0 ? (
-              <div className="p-12 text-center flex flex-col items-center">
-                <Calendar className="mx-auto mb-3 text-muted-foreground" size={32}/>
-                <p className="text-muted-foreground text-sm">Nenhum agendamento confirmado para o futuro.</p>
-              </div>
-            ) : (
-              upcoming.map(b => renderBookingRow(b, "upcoming"))
-            )}
+            {upcoming.length === 0
+              ? emptyState(<Calendar className="text-muted-foreground" size={32} />, "Nenhuma consulta confirmada para o futuro.")
+              : upcoming.map((b) => renderRow(b, "upcoming"))}
           </Card>
         </TabsContent>
 
         <TabsContent value="pending" className="mt-5 outline-none">
           <Card className="rounded-2xl border-border/60 divide-y divide-border/60 shadow-sm overflow-hidden">
-            {pending.length === 0 ? (
-              <div className="p-12 text-center flex flex-col items-center">
-                <Clock className="mx-auto mb-3 text-muted-foreground" size={32}/>
-                <p className="text-muted-foreground text-sm">Nenhum agendamento aguardando aprovação.</p>
-              </div>
-            ) : (
-              pending.map(b => renderBookingRow(b, "pending"))
-            )}
+            {pending.length === 0
+              ? emptyState(<Clock className="text-muted-foreground" size={32} />, "Nenhuma consulta aguardando aprovação.")
+              : pending.map((b) => renderRow(b, "pending"))}
           </Card>
         </TabsContent>
 
         <TabsContent value="past" className="mt-5 outline-none">
           <Card className="rounded-2xl border-border/60 divide-y divide-border/60 shadow-sm overflow-hidden">
-            {past.length === 0 ? (
-              <div className="p-12 text-center flex flex-col items-center">
-                <Calendar className="mx-auto mb-3 text-muted-foreground opacity-50" size={32}/>
-                <p className="text-muted-foreground text-sm">Nenhuma reunião passada encontrada.</p>
-              </div>
-            ) : (
-              past.map(b => renderBookingRow(b, "past"))
-            )}
+            {past.length === 0
+              ? emptyState(<Calendar className="text-muted-foreground opacity-50" size={32} />, "Nenhuma consulta passada encontrada.")
+              : past.map((b) => renderRow(b, "past"))}
           </Card>
         </TabsContent>
 
         <TabsContent value="canceled" className="mt-5 outline-none">
           <Card className="rounded-2xl border-border/60 divide-y divide-border/60 shadow-sm overflow-hidden">
-            {canceled.length === 0 ? (
-              <div className="p-12 text-center flex flex-col items-center">
-                <XCircle className="mx-auto mb-3 text-muted-foreground" size={32}/>
-                <p className="text-muted-foreground text-sm">Nenhum agendamento cancelado.</p>
-              </div>
-            ) : (
-              canceled.map(b => renderBookingRow(b, "canceled"))
-            )}
+            {canceled.length === 0
+              ? emptyState(<XCircle className="text-muted-foreground" size={32} />, "Nenhuma consulta cancelada.")
+              : canceled.map((b) => renderRow(b, "canceled"))}
           </Card>
         </TabsContent>
       </Tabs>

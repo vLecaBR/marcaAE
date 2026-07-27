@@ -1,155 +1,83 @@
 "use server"
 
-import { auth } from "@/auth"
-import { prisma } from "@/lib/prisma"
-import { eventTypeSchema, type EventTypeInput } from "@/lib/validators/event-type"
+/**
+ * Tipos de consulta — proxy fino para a API .NET (Fase 5). Sem Prisma/NextAuth.
+ * Assinaturas preservadas para os componentes client (`EventTypeList`/`Form`/`Card`).
+ *
+ * Gap de backend: a API não expõe `questions` do EventType (nem detalhe com buffers).
+ * Os campos são enviados no upsert quando suportados; `questions` é ignorado por ora
+ * (ver docs/backend-backlog.md).
+ */
+
 import { revalidatePath } from "next/cache"
+import { eventTypeSchema, type EventTypeInput } from "@/lib/validators/event-type"
+import { serverApiFetch } from "@/lib/api/http-client"
+import { endpoints } from "@/lib/api/endpoints"
+import { apiAction, callApi, type ActionResult } from "@/lib/api/action-helpers"
+import type { EventTypeSummaryDto } from "@/lib/api/types"
 
-type ActionResult<T = void> =
-  | { success: true; data: T }
-  | { success: false; error: string }
-
-// ── Listar ────────────────────────────────────────────────────────────────────
-
-export async function getEventTypesAction() {
-  const session = await auth()
-  if (!session?.user?.id) return { success: false, error: "Não autorizado." }
-
-  const eventTypes = await prisma.eventType.findMany({
-    where: { userId: session.user.id },
-    orderBy: { createdAt: "asc" },
-    select: {
-      id: true,
-      title: true,
-      slug: true,
-      description: true,
-      duration: true,
-      color: true,
-      isActive: true,
-      requiresConfirm: true,
-      beforeEventBuffer: true,
-      afterEventBuffer: true,
-      bookingLimitDays: true,
-      locationType: true,
-      locationValue: true,
-      price: true,
-      _count: { select: { bookings: true } },
-    },
-  })
-
-  return { success: true, data: eventTypes }
+export async function getEventTypesAction(): Promise<ActionResult<EventTypeSummaryDto[]>> {
+  return callApi<EventTypeSummaryDto[]>(endpoints.eventTypes.root, { method: "GET" }, "Erro ao listar.")
 }
 
-// ── Criar / Atualizar ─────────────────────────────────────────────────────────
-
 export async function upsertEventTypeAction(
-  raw: EventTypeInput
+  raw: EventTypeInput,
 ): Promise<ActionResult<{ id: string; slug: string }>> {
-  const session = await auth()
-  if (!session?.user?.id) return { success: false, error: "Não autorizado." }
-
   const parsed = eventTypeSchema.safeParse(raw)
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0].message }
   }
 
-  const { id, questions, ...data } = parsed.data
-
-  // Verifica unicidade do slug para este user
-  const slugConflict = await prisma.eventType.findFirst({
-    where: {
-      userId: session.user.id,
-      slug: data.slug,
-      NOT: id ? { id } : undefined,
-    },
-  })
-
-  if (slugConflict) {
-    return { success: false, error: "Você já tem um evento com este slug." }
+  const { id, ...rest } = parsed.data
+  const body = {
+    title: rest.title,
+    slug: rest.slug,
+    description: rest.description ?? null,
+    duration: rest.duration,
+    color: rest.color,
+    isActive: rest.isActive,
+    requiresConfirm: rest.requiresConfirm,
+    beforeEventBuffer: rest.beforeEventBuffer,
+    afterEventBuffer: rest.afterEventBuffer,
+    bookingLimitDays: rest.bookingLimitDays ?? null,
+    locationType: rest.locationType,
+    locationValue: rest.locationValue ?? null,
+    price: rest.price ?? null,
+    currency: "BRL",
   }
 
-  const eventType = await prisma.$transaction(async (tx: any) => {
-    let event;
+  const result = await apiAction(async () => {
     if (id) {
-      event = await tx.eventType.update({
-        where: { id, userId: session.user.id },
-        data: data,
-        select: { id: true, slug: true },
-      })
-    } else {
-      event = await tx.eventType.create({
-        data: { ...data, userId: session.user.id },
-        select: { id: true, slug: true },
-      })
+      await serverApiFetch(endpoints.eventTypes.byId(id), { method: "PUT", body })
+      return { id, slug: rest.slug }
     }
+    const created = await serverApiFetch<EventTypeSummaryDto>(endpoints.eventTypes.root, {
+      method: "POST",
+      body,
+    })
+    return { id: created?.id ?? "", slug: created?.slug ?? rest.slug }
+  }, "Erro ao salvar o tipo de consulta.")
 
-    if (questions) {
-      // Clear old questions
-      await tx.eventTypeQuestion.deleteMany({
-        where: { eventTypeId: event.id }
-      })
-      
-      if (questions.length > 0) {
-        await tx.eventTypeQuestion.createMany({
-          data: questions.map((q, i) => ({
-            eventTypeId: event.id,
-            label: q.label,
-            type: q.type,
-            placeholder: q.placeholder,
-            required: q.required,
-            order: i,
-          }))
-        })
-      }
-    }
-
-    return event
-  })
-
-  revalidatePath("/dashboard/event-types")
-  return { success: true, data: eventType }
+  if (result.success) revalidatePath("/dashboard/event-types")
+  return result
 }
 
-// ── Ativar / Desativar ────────────────────────────────────────────────────────
-
-export async function toggleEventTypeAction(
-  id: string,
-  isActive: boolean
-): Promise<ActionResult> {
-  const session = await auth()
-  if (!session?.user?.id) return { success: false, error: "Não autorizado." }
-
-  const eventType = await prisma.eventType.findFirst({
-    where: { id, userId: session.user.id },
-  })
-
-  if (!eventType) return { success: false, error: "Evento não encontrado." }
-
-  await prisma.eventType.update({
-    where: { id, userId: session.user.id },
-    data: { isActive },
-  })
-
-  revalidatePath("/dashboard/event-types")
-  return { success: true, data: undefined }
+export async function toggleEventTypeAction(id: string, isActive: boolean): Promise<ActionResult> {
+  const result = await callApi(
+    endpoints.eventTypes.status(id),
+    { method: "PATCH", body: { isActive } },
+    "Erro ao atualizar o status.",
+  )
+  if (result.success) revalidatePath("/dashboard/event-types")
+  return result.success ? { success: true, data: undefined } : result
 }
 
-// ── Deletar ───────────────────────────────────────────────────────────────────
-
-export async function deleteEventTypeAction(
-  id: string
-): Promise<ActionResult> {
-  const session = await auth()
-  if (!session?.user?.id) return { success: false, error: "Não autorizado." }
-
-  const eventType = await prisma.eventType.findFirst({
-    where: { id, userId: session.user.id },
-  })
-
-  if (!eventType) return { success: false, error: "Evento não encontrado." }
-
-  await prisma.eventType.delete({ where: { id, userId: session.user.id } })
-
-  revalidatePath("/dashboard/event-types")
-  return { success: true, data: undefined }
+export async function deleteEventTypeAction(id: string): Promise<ActionResult> {
+  const result = await callApi(
+    endpoints.eventTypes.byId(id),
+    { method: "DELETE" },
+    "Erro ao remover.",
+  )
+  if (result.success) revalidatePath("/dashboard/event-types")
+  return result.success ? { success: true, data: undefined } : result
 }

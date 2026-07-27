@@ -1,114 +1,128 @@
-import { auth } from "@/auth"
-import { redirect } from "next/navigation"
-import { prisma } from "@/lib/prisma"
-import { TeamMembersList } from "./components/team-members-list"
-import { ArrowLeft, CreditCard, AlertCircle, QrCode } from "lucide-react"
-import Link from "next/link"
 import type { Metadata } from "next"
+import { redirect, notFound } from "next/navigation"
+import Link from "next/link"
+import { ArrowLeft, CreditCard, AlertCircle, QrCode } from "lucide-react"
+import { TeamMembersList } from "./components/team-members-list"
+import { requireOnboarded } from "@/lib/auth/guards"
+import { serverApiFetch } from "@/lib/api/http-client"
+import { endpoints } from "@/lib/api/endpoints"
+import { isApiError } from "@/lib/api/problem-details"
+import type { TeamDetailDto, TeamBillingDto } from "@/lib/api/types"
 
-export const metadata: Metadata = { title: "Detalhes da Equipe | MarcaAí" }
+export const metadata: Metadata = { title: "Detalhes da clínica" }
 
+/**
+ * Detalhe da clínica — via API .NET (`GET /teams/{id}` + `GET /teams/{id}/billing`).
+ * O backend enforça o RBAC: 403/404 → notFound (não vaza a existência da clínica).
+ */
 export default async function TeamDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session?.user?.id) redirect("/login")
-
+  const me = await requireOnboarded()
   const { id } = await params
 
-  const team = await prisma.team.findUnique({
-    where: { id },
-    include: {
-      subscription: true,
-      members: {
-        include: {
-          user: { select: { id: true, name: true, email: true, image: true } }
-        },
-        orderBy: { role: "asc" }
-      }
-    }
-  })
+  let team: TeamDetailDto
+  try {
+    team = await serverApiFetch<TeamDetailDto>(endpoints.teams.byId(id))
+  } catch (err) {
+    if (isApiError(err) && (err.kind === "not_found" || err.kind === "forbidden")) notFound()
+    if (isApiError(err) && err.kind === "unauthorized") redirect("/login")
+    throw err
+  }
 
-  if (!team) redirect("/dashboard/teams")
+  const billing = await serverApiFetch<TeamBillingDto>(endpoints.teams.billing(id)).catch(() => null)
+  const isSubscribed = billing?.active ?? false
+  const currentUserRole = team.role
 
-  const currentMember = team.members.find((m: any) => m.userId === session.user.id)
-  if (!currentMember) redirect("/dashboard/teams")
-
-  const isSubscribed = team.subscription?.status === "active"
+  const members = team.members.map((m) => ({
+    id: m.userId,
+    userId: m.userId,
+    role: m.role,
+    user: { id: m.userId, name: m.name, email: m.email, image: null as string | null },
+  }))
 
   return (
     <div className="space-y-8">
-      {!isSubscribed && currentMember.role === "OWNER" && (
-        <div className="flex items-center justify-between rounded-xl bg-amber-500/10 px-4 py-3 border border-amber-500/20">
+      {!isSubscribed && currentUserRole === "OWNER" && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl bg-warning/10 px-4 py-3 border border-warning/20">
           <div className="flex items-center gap-3">
-            <AlertCircle className="h-5 w-5 text-amber-500" />
-            <p className="text-sm font-medium text-amber-500">
-              Assinatura pendente! Para que sua equipe possa receber agendamentos, ative o plano Pro.
+            <AlertCircle className="h-5 w-5 text-warning" />
+            <p className="text-sm font-medium text-warning">
+              Assinatura pendente. Ative o plano para a clínica receber agendamentos.
             </p>
           </div>
           <Link
             href={`/dashboard/teams/${team.id}/billing`}
-            className="rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-medium text-amber-500 hover:bg-amber-500/30 transition-colors"
+            className="rounded-lg bg-warning/20 px-3 py-1.5 text-xs font-medium text-warning hover:bg-warning/30 transition-colors"
           >
-            Assinar Agora
+            Assinar agora
           </Link>
         </div>
       )}
 
       <div className="flex items-center gap-4">
-        <Link 
+        <Link
           href="/dashboard/teams"
-          className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/40 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all"
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-semibold text-white">{team.name}</h1>
-          <p className="mt-1 text-sm text-zinc-400">
-            {team.slug} • Gerencie os membros e configurações da equipe.
+          <h1 className="text-2xl font-semibold">{team.name}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {team.slug} • Gerencie os profissionais e as configurações da clínica.
           </p>
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
-          <TeamMembersList 
-            teamId={team.id} 
-            members={team.members} 
-            currentUserRole={currentMember.role}
-            currentUserId={session.user.id}
+          <TeamMembersList
+            teamId={team.id}
+            members={members as never}
+            currentUserRole={currentUserRole}
+            currentUserId={me.id}
           />
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6">
-            <h3 className="text-base font-semibold text-white">Informações</h3>
-            <div className="mt-4 space-y-4 text-sm text-zinc-400">
+          <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
+            <h3 className="text-base font-semibold">Informações</h3>
+            <div className="mt-4 space-y-4 text-sm text-muted-foreground">
               <div>
-                <p className="font-medium text-zinc-300">Link Público</p>
-                <a href={`/team/${team.slug}`} target="_blank" rel="noreferrer" className="text-violet-400 hover:underline">
-                  marca-ai-app.vercel.app/team/{team.slug}
+                <p className="font-medium text-foreground">Link público</p>
+                <a
+                  href={`/team/${team.slug}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-brand-primary hover:underline"
+                >
+                  marcaai.app/team/{team.slug}
                 </a>
               </div>
-              {currentMember.role === "OWNER" && (
+              {currentUserRole === "OWNER" && (
                 <>
                   <div>
-                    <p className="font-medium text-zinc-300">Faturamento</p>
-                    <Link href={`/dashboard/teams/${team.id}/billing`} className="text-violet-400 hover:underline flex items-center gap-1 mt-1">
-                      <CreditCard className="h-4 w-4" />
-                      Gerenciar Assinatura
+                    <p className="font-medium text-foreground">Faturamento</p>
+                    <Link
+                      href={`/dashboard/teams/${team.id}/billing`}
+                      className="text-brand-primary hover:underline flex items-center gap-1 mt-1"
+                    >
+                      <CreditCard className="h-4 w-4" /> Gerenciar assinatura
                     </Link>
                   </div>
                   <div>
-                    <p className="font-medium text-zinc-300">Marketing (Mesa/Balcão)</p>
-                    <Link href={`/dashboard/teams/${team.id}/marketing`} className="text-emerald-400 hover:underline flex items-center gap-1 mt-1">
-                      <QrCode className="h-4 w-4" />
-                      Imprimir QR Code
+                    <p className="font-medium text-foreground">Marketing (balcão)</p>
+                    <Link
+                      href={`/dashboard/teams/${team.id}/marketing`}
+                      className="text-care hover:underline flex items-center gap-1 mt-1"
+                    >
+                      <QrCode className="h-4 w-4" /> Imprimir QR Code
                     </Link>
                   </div>
                 </>
               )}
               {team.description && (
                 <div>
-                  <p className="font-medium text-zinc-300">Descrição</p>
+                  <p className="font-medium text-foreground">Descrição</p>
                   <p className="mt-1">{team.description}</p>
                 </div>
               )}

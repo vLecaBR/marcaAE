@@ -1,125 +1,34 @@
 "use server"
 
-import { auth } from "@/auth"
-import { prisma } from "@/lib/prisma"
+/**
+ * Ações de agendamento do profissional — proxy para a API .NET (Fase 5). Sem Prisma/NextAuth/Google.
+ *
+ * Gap de backend: a API expõe `POST /bookings/{uid}/cancel`, mas **não** há endpoint de
+ * aprovação/confirmação manual de um booking PENDING (o antigo fluxo criava o evento no Google
+ * e marcava CONFIRMED). Enquanto o endpoint não existir, `approveBookingAction` retorna aviso.
+ * Registrado em docs/backend-backlog.md.
+ */
+
 import { revalidatePath } from "next/cache"
-import { cancelBooking } from "@/lib/actions/booking"
-import { createGoogleCalendarEvent } from "@/lib/google/calendar"
-import { sendBookingConfirmedEmail } from "@/lib/email/send"
-import { sendWhatsAppConfirmation } from "@/lib/whatsapp/send"
-import { APP_URL } from "@/lib/email/resend"
+import { endpoints } from "@/lib/api/endpoints"
+import { callApi, type ActionResult } from "@/lib/api/action-helpers"
 
-export async function approveBookingAction(uid: string) {
-  const session = await auth()
-  if (!session?.user?.id) return { success: false, error: "Não autorizado" }
-
-  const booking = await prisma.booking.findUnique({
-    where: { uid },
-    include: {
-      eventType: {
-        select: {
-          title: true,
-          locationType: true,
-          locationValue: true,
-          user: { select: { name: true, email: true, timeZone: true } },
-        },
-      },
-    },
-  })
-
-  if (!booking || booking.userId !== session.user.id) {
-    return { success: false, error: "Agendamento não encontrado ou sem permissão" }
+export async function approveBookingAction(_uid: string): Promise<ActionResult> {
+  return {
+    success: false,
+    error: "A aprovação manual estará disponível em breve (endpoint de backend pendente).",
   }
-
-  let finalMeetingUrl = booking.eventType.locationValue ?? null
-  let finalMeetingId = null
-
-  // Generate Google Calendar event & Meet link since it's now confirmed
-  const eventResponse = await createGoogleCalendarEvent({
-    userId: session.user.id,
-    title: `${booking.eventType.title} com ${booking.guestName}`,
-    description: `Agendamento via MarcaAí\n\nConvidado: ${booking.guestName} (${booking.guestEmail})\nNotas: ${booking.guestNotes ?? "Nenhuma"}`,
-    startTime: booking.startTime,
-    endTime: booking.endTime,
-    guestName: booking.guestName,
-    guestEmail: booking.guestEmail,
-    createMeetLink: booking.eventType.locationType === "GOOGLE_MEET",
-    recurringCount: undefined, // Só passa se quisermos forçar o gcal a repetir, mas a modelagem do MarcaAi gera Bookings separados.
-  })
-
-  if (eventResponse) {
-    finalMeetingId = eventResponse.eventId
-    if (eventResponse.meetLink) {
-      finalMeetingUrl = eventResponse.meetLink
-    }
-  }
-
-  await prisma.booking.update({
-    where: { uid, userId: session.user.id },
-    data: { 
-      status: "CONFIRMED",
-      meetingId: finalMeetingId,
-      meetingUrl: finalMeetingUrl,
-    },
-  })
-
-  // Emails and WhatsApp
-  const emailData = {
-    uid: booking.uid,
-    guestName: booking.guestName,
-    guestEmail: booking.guestEmail,
-    ownerName: booking.eventType.user.name ?? "Organizador",
-    ownerEmail: booking.eventType.user.email,
-    eventTitle: booking.eventType.title,
-    startTime: booking.startTime,
-    endTime: booking.endTime,
-    guestTimeZone: booking.guestTimeZone,
-    ownerTimeZone: booking.eventType.user.timeZone,
-    locationType: booking.eventType.locationType,
-    meetingUrl: finalMeetingUrl,
-    requiresConfirm: false,
-  }
-
-  void sendBookingConfirmedEmail(emailData).catch(err => console.error("[email approve dispatch]", err))
-
-  if (booking.guestPhone) {
-    void sendWhatsAppConfirmation({
-      phone: booking.guestPhone,
-      guestName: booking.guestName,
-      eventTitle: booking.eventType.title,
-      ownerName: booking.eventType.user.name ?? "Organizador",
-      startTime: booking.startTime,
-      appUrl: APP_URL,
-      uid: booking.uid,
-    }).catch(err => console.error("[whatsapp approve dispatch]", err))
-  }
-
-  revalidatePath("/dashboard")
-  revalidatePath("/dashboard/bookings")
-
-  return { success: true }
 }
 
-export async function rejectBookingAction(uid: string, reason: string) {
-  const session = await auth()
-  if (!session?.user?.id) return { success: false, error: "Não autorizado" }
-
-  const booking = await prisma.booking.findUnique({
-    where: { uid },
-    select: { userId: true },
-  })
-
-  if (!booking || booking.userId !== session.user.id) {
-    return { success: false, error: "Agendamento não encontrado ou sem permissão" }
-  }
-
-  const result = await cancelBooking(uid, reason, "OWNER")
-
-  if (result.status === "success") {
+export async function rejectBookingAction(uid: string, reason: string): Promise<ActionResult> {
+  const result = await callApi(
+    endpoints.bookings.cancel(uid),
+    { method: "POST", body: { reason, canceledBy: "OWNER" } },
+    "Erro ao cancelar o agendamento.",
+  )
+  if (result.success) {
     revalidatePath("/dashboard")
     revalidatePath("/dashboard/bookings")
-    return { success: true }
   }
-
-  return { success: false, error: result.message ?? "Erro ao rejeitar" }
+  return result.success ? { success: true, data: undefined } : result
 }

@@ -1,62 +1,55 @@
-import { auth } from "@/auth"
-import { redirect } from "next/navigation"
-import { prisma } from "@/lib/prisma"
+import type { Metadata } from "next"
 import { AvailabilityForm } from "@/components/settings/availability-form"
 import { ExceptionsManager } from "@/components/settings/exceptions/exceptions-manager"
-import type { Metadata } from "next"
+import { requireOnboarded } from "@/lib/auth/guards"
+import { serverApiFetch } from "@/lib/api/http-client"
+import { endpoints } from "@/lib/api/endpoints"
+import { Card } from "@/components/ui/card"
+import type { ScheduleDto } from "@/lib/api/types"
 
-export const metadata: Metadata = { title: "Disponibilidade | Marca AI" }
+export const metadata: Metadata = { title: "Disponibilidade" }
 
+/**
+ * Disponibilidade — via API .NET (`GET /schedules`). Usa a agenda padrão do profissional.
+ */
 export default async function AvailabilityPage() {
-  const session = await auth()
-  if (!session?.user?.id) redirect("/login")
+  await requireOnboarded()
 
-  let schedule = await prisma.schedule.findFirst({
-    where: { userId: session.user.id },
-    include: { 
-      availabilities: true,
-      exceptions: {
-        where: { date: { gte: new Date() } },
-        orderBy: { date: "asc" }
-      }
-    },
-  })
-
-  if (!schedule) {
-    schedule = await prisma.schedule.create({
-      data: {
-        userId: session.user.id,
-        name: "Agenda Padrão",
-        timeZone: "America/Sao_Paulo",
-        isDefault: true,
-        availabilities: {
-          create: [1, 2, 3, 4, 5].map((dayOfWeek) => ({
-            dayOfWeek,
-            startTime: "09:00",
-            endTime: "18:00",
-          })),
-        },
-      },
-      include: { availabilities: true, exceptions: true },
-    })
-  }
+  const schedules = await serverApiFetch<ScheduleDto[]>(endpoints.schedules.root).catch(
+    () => [] as ScheduleDto[],
+  )
+  const schedule = schedules.find((s) => s.isDefault) ?? schedules[0]
 
   return (
     <div>
       <div className="mb-6">
         <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: -0.5 }}>Disponibilidade</h1>
-        <p className="text-muted-foreground mt-1">Defina quando você está livre para receber reuniões.</p>
+        <p className="text-muted-foreground mt-1">
+          Defina quando você está livre para atender seus pacientes.
+        </p>
       </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2">
-          <AvailabilityForm schedule={schedule} />
-        </div>
 
-        <div className="h-fit">
-          <ExceptionsManager scheduleId={schedule.id} exceptions={schedule.exceptions} />
+      {!schedule ? (
+        <Card className="rounded-2xl border-border/60 p-8 text-center text-sm text-muted-foreground shadow-sm">
+          Nenhuma agenda encontrada. Ela é criada automaticamente no seu primeiro acesso — recarregue
+          em instantes.
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="lg:col-span-2">
+            <AvailabilityForm
+              schedule={{
+                id: schedule.id,
+                timeZone: schedule.timeZone,
+                availabilities: schedule.availabilities,
+              }}
+            />
+          </div>
+          <div className="h-fit">
+            <ExceptionsManager scheduleId={schedule.id} exceptions={schedule.exceptions as never} />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

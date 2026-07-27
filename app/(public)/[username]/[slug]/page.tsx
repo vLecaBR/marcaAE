@@ -1,144 +1,72 @@
-import { prisma } from "@/lib/prisma"
 import { notFound } from "next/navigation"
-import { BookingPageShell } from "@/components/booking/booking-page-shell"
-import { cn } from "@/lib/utils"
 import type { Metadata } from "next"
-import { unstable_cache } from "next/cache"
-import { addDays, startOfDay } from "date-fns"
-import { buildAvailableWindows } from "@/lib/scheduling/availability"
-import { computeAvailableSlots, groupSlotsByDate, getAvailableDates } from "@/lib/scheduling/slots"
-
-const getCachedEventTypeMeta = async (username: string, slug: string) => {
-  return unstable_cache(
-    async () => {
-      return prisma.eventType.findFirst({
-        where: { slug, isActive: true, user: { username } },
-        select: { title: true, description: true, user: { select: { name: true } } },
-      })
-    },
-    [`public-event-meta-${username}-${slug}`],
-    { tags: ["event-types"], revalidate: 60 }
-  )()
-}
-
-const getCachedEventType = async (username: string, slug: string) => {
-  return unstable_cache(
-    async () => {
-      return prisma.eventType.findFirst({
-        where: { slug, isActive: true, user: { username } },
-        select: {
-          id: true, title: true, slug: true, description: true,
-          duration: true, color: true, locationType: true,
-          price: true,
-          questions: { orderBy: { order: "asc" } },
-          requiresConfirm: true, beforeEventBuffer: true,
-          afterEventBuffer: true, bookingLimitDays: true,
-          user: {
-            select: {
-              id: true, name: true, image: true, username: true, timeZone: true, theme: true, brandColor: true,
-              schedules: {
-                where: { isDefault: true },
-                include: {
-                  availabilities: true,
-                  exceptions: true,
-                },
-                take: 1,
-              },
-            },
-          },
-        },
-      })
-    },
-    [`public-event-type-${username}-${slug}`],
-    { tags: ["event-types"], revalidate: 60 }
-  )()
-}
+import { BookingPageShell } from "@/components/booking/booking-page-shell"
+import { serverApiFetch } from "@/lib/api/http-client"
+import { endpoints } from "@/lib/api/endpoints"
+import { isApiError } from "@/lib/api/problem-details"
+import { safeBrandColor } from "@/lib/brand-theme"
+import type { PublicProfileWithEventsDto } from "@/lib/api/booking-types"
 
 interface Props {
   params: Promise<{ username: string; slug: string }>
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { username, slug } = await params
-  const eventType = await getCachedEventTypeMeta(username, slug)
-  if (!eventType) return { title: "Não encontrado" }
-  return {
-    title: `${eventType.title} · ${eventType.user.name}`,
-    description: eventType.description ?? undefined,
+async function getProfile(username: string): Promise<PublicProfileWithEventsDto | null> {
+  try {
+    return await serverApiFetch<PublicProfileWithEventsDto>(endpoints.public(username))
+  } catch (err) {
+    if (isApiError(err) && err.kind === "not_found") return null
+    throw err
   }
 }
 
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { username, slug } = await params
+  const profile = await getProfile(username)
+  const event = profile?.eventTypes.find((e) => e.slug === slug)
+  if (!event) return { title: "Não encontrado" }
+  return { title: `${event.title} · ${profile?.name ?? username}`, description: event.description ?? undefined }
+}
+
+/**
+ * Página de agendamento de um serviço — via API .NET (`GET /public/{username}`).
+ * Os horários NÃO são calculados aqui: o `TimeSlotPicker` busca por dia em `/api/slots`
+ * (proxy para `GET /slots` do backend). Marca temável com AA (ADR-0004).
+ */
 export default async function BookingPage({ params }: Props) {
   const { username, slug } = await params
+  const profile = await getProfile(username)
+  const event = profile?.eventTypes.find((e) => e.slug === slug)
+  if (!profile || !event) notFound()
 
-  const eventType = await getCachedEventType(username, slug) as any
-
-  if (!eventType || !eventType.user.schedules[0]) notFound()
-
-  // Compute available slots on the server to avoid heavy client-side computation during hydration
-  const scheduleData = {
-    timeZone: eventType.user.schedules[0].timeZone,
-    availabilities: eventType.user.schedules[0].availabilities,
-    exceptions: eventType.user.schedules[0].exceptions.map((ex: any) => ({
-      ...ex,
-      type: ex.type as "BLOCKED" | "VACATION" | "OVERRIDE",
-    })),
-  }
-  const dateFrom = startOfDay(new Date())
-  const bookingLimitDays = eventType.bookingLimitDays ?? 60
-  const dateTo = addDays(dateFrom, bookingLimitDays)
-  
-  const windows = buildAvailableWindows(scheduleData, dateFrom, dateTo)
-  const slots = computeAvailableSlots(windows, [], {
-    userId: eventType.user.id,
-    eventDuration: eventType.duration,
-    beforeBuffer: eventType.beforeEventBuffer,
-    afterBuffer: eventType.afterEventBuffer,
-    dateFrom,
-    dateTo,
-    viewerTimeZone: eventType.user.timeZone, // Assume viewer = owner initially
-    bookingLimitDays,
-  })
-
-  // We only pass availableDates to avoid bloating the initial HTML payload with thousands of slots
-  const initialAvailableDates = getAvailableDates(slots, eventType.user.timeZone)
+  const brand = safeBrandColor(profile.brandColor)
 
   return (
-    <main 
-      className={cn(
-        "min-h-screen",
-        eventType.user.theme === "LIGHT" ? "bg-slate-50 text-slate-900" : "bg-[#09090b] text-white"
-      )}
-      style={{
-        "--brand": eventType.user.brandColor ?? "#7c3aed",
-      } as React.CSSProperties}
-    >
+    <main className="min-h-screen bg-surface" style={{ "--brand": brand } as React.CSSProperties}>
       <BookingPageShell
         eventType={{
-          id: eventType.id,
-          title: eventType.title,
-          description: eventType.description,
-          duration: eventType.duration,
-          color: eventType.color,
-          locationType: eventType.locationType,
-          price: eventType.price,
-          questions: eventType.questions,
-          requiresConfirm: eventType.requiresConfirm,
-          beforeEventBuffer: eventType.beforeEventBuffer,
-          afterEventBuffer: eventType.afterEventBuffer,
-          bookingLimitDays: eventType.bookingLimitDays,
+          id: event.id,
+          title: event.title,
+          description: event.description,
+          duration: event.duration,
+          color: event.color,
+          locationType: event.locationType,
+          price: event.price,
+          questions: [],
+          requiresConfirm: false,
+          beforeEventBuffer: 0,
+          afterEventBuffer: 0,
+          bookingLimitDays: 60,
         }}
         owner={{
-          id: eventType.user.id,
-          name: eventType.user.name,
-          image: eventType.user.image,
-          username: eventType.user.username ?? "",
-          timeZone: eventType.user.timeZone,
-          theme: eventType.user.theme,
-          brandColor: eventType.user.brandColor,
+          id: profile.id ?? "",
+          name: profile.name,
+          image: profile.image,
+          username: profile.username,
+          timeZone: profile.timeZone,
+          theme: profile.theme,
+          brandColor: profile.brandColor,
         }}
-        schedule={scheduleData}
-        initialAvailableDates={initialAvailableDates}
       />
     </main>
   )

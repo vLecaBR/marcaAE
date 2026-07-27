@@ -58,7 +58,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
       timeZone: user.timeZone ?? "America/Sao_Paulo",
       bio: user.bio ?? "",
       theme: (user.theme as any) ?? "DARK",
-      brandColor: user.brandColor ?? "#7c3aed",
+      brandColor: user.brandColor ?? "#0f9e8e",
     },
   })
 
@@ -66,8 +66,10 @@ export function ProfileForm({ user }: ProfileFormProps) {
     setServerError(null)
     setSuccessMsg(null)
     const result = await completeProfileAction(data)
-    
+
     if (result.success) {
+      // Rotaciona o token para refletir o novo username (spec §3.2).
+      await fetch("/api/auth/refresh", { method: "POST", credentials: "same-origin" }).catch(() => null)
       setSuccessMsg("Perfil atualizado com sucesso!")
       router.refresh()
     } else {
@@ -100,7 +102,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
             className="h-20 w-20 rounded-full object-cover shrink-0"
           />
         ) : (
-          <div className="w-20 h-20 rounded-full shrink-0 bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white" style={{ fontSize: 26, fontWeight: 600 }}>
+          <div className="w-20 h-20 rounded-full shrink-0 bg-gradient-to-br from-brand-primary to-care flex items-center justify-center text-white" style={{ fontSize: 26, fontWeight: 600 }}>
             {userInitials}
           </div>
         )}

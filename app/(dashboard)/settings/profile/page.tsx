@@ -1,21 +1,23 @@
-import { auth } from "@/auth"
-import { redirect } from "next/navigation"
-import { prisma } from "@/lib/prisma"
-import { ProfileForm } from "./components/profile-form"
 import type { Metadata } from "next"
+import { ProfileForm } from "./components/profile-form"
 import { Card } from "@/components/ui/card"
+import { requireOnboarded } from "@/lib/auth/guards"
+import { serverApiFetch } from "@/lib/api/http-client"
+import { endpoints } from "@/lib/api/endpoints"
+import type { PublicProfileDto } from "@/lib/api/types"
 
-export const metadata: Metadata = { title: "Meu Perfil | Marca AI" }
+export const metadata: Metadata = { title: "Meu perfil" }
 
+/**
+ * Perfil — via API .NET. Identidade base vem de `GET /auth/me`; nome/bio/marca são pré-preenchidos
+ * a partir de `GET /public/{username}` quando o username já existe.
+ */
 export default async function ProfilePage() {
-  const session = await auth()
-  if (!session?.user?.id) redirect("/login")
+  const me = await requireOnboarded()
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id }
-  })
-
-  if (!user) redirect("/login")
+  const publicProfile = me.username
+    ? await serverApiFetch<PublicProfileDto>(endpoints.public(me.username)).catch(() => null)
+    : null
 
   return (
     <div className="space-y-6">
@@ -27,16 +29,16 @@ export default async function ProfilePage() {
       </div>
 
       <Card className="p-7 rounded-2xl border-border/60 max-w-3xl shadow-sm">
-        <ProfileForm 
+        <ProfileForm
           user={{
-            name: user.name,
-            username: user.username,
-            timeZone: user.timeZone,
-            bio: user.bio,
-            image: user.image,
-            email: user.email,
-            theme: user.theme,
-            brandColor: user.brandColor,
+            name: publicProfile?.name ?? null,
+            username: me.username,
+            timeZone: me.timeZone,
+            bio: publicProfile?.bio ?? null,
+            image: publicProfile?.image ?? null,
+            email: me.email,
+            theme: publicProfile?.theme ?? "LIGHT",
+            brandColor: publicProfile?.brandColor ?? null,
           }}
         />
       </Card>

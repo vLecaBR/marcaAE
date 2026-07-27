@@ -1,23 +1,19 @@
 "use server"
 
-import { z } from "zod"
-import { auth } from "@/auth"
-import { prisma } from "@/lib/prisma"
-import { availabilitySchema } from "@/lib/validators/onboarding"
-import { revalidatePath } from "next/cache"
+/**
+ * Disponibilidade — proxy fino para `PUT /schedules/{id}/availability` (Fase 5).
+ * Sem Prisma/NextAuth. Achata os intervalos por dia no formato da API.
+ */
 
-type ActionResult<T = void> =
-  | { success: true; data: T }
-  | { success: false; error: string }
+import { z } from "zod"
+import { revalidatePath } from "next/cache"
+import { availabilitySchema } from "@/lib/validators/onboarding"
+import { endpoints } from "@/lib/api/endpoints"
+import { callApi, type ActionResult } from "@/lib/api/action-helpers"
 
 export async function saveAvailabilityAction(
-  raw: z.infer<typeof availabilitySchema>
+  raw: z.infer<typeof availabilitySchema>,
 ): Promise<ActionResult> {
-  const session = await auth()
-  if (!session?.user?.id) {
-    return { success: false, error: "Não autorizado." }
-  }
-
   const parsed = availabilitySchema.safeParse(raw)
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0].message }
@@ -25,39 +21,18 @@ export async function saveAvailabilityAction(
 
   const { scheduleId, timeZone, availabilities } = parsed.data
 
-  const schedule = await prisma.schedule.findFirst({
-    where: { id: scheduleId, userId: session.user.id },
-  })
-
-  if (!schedule) {
-    return { success: false, error: "Agenda não encontrada." }
-  }
-
-  // Achatar os intervalos para o createMany
-  const flatAvailabilities = availabilities
+  // Achata dias habilitados em janelas { dayOfWeek, startTime, endTime } (contrato da API).
+  const flat = availabilities
     .filter((d) => d.enabled && d.intervals.length > 0)
     .flatMap((d) =>
-      d.intervals.map((interval) => ({
-        scheduleId,
-        dayOfWeek: d.dayOfWeek,
-        startTime: interval.startTime,
-        endTime: interval.endTime,
-      }))
+      d.intervals.map((i) => ({ dayOfWeek: d.dayOfWeek, startTime: i.startTime, endTime: i.endTime })),
     )
 
-  await prisma.$transaction([
-    prisma.schedule.update({
-      where: { id: scheduleId, userId: session.user.id },
-      data: { timeZone },
-    }),
-    prisma.scheduleAvailability.deleteMany({
-      where: { scheduleId },
-    }),
-    prisma.scheduleAvailability.createMany({
-      data: flatAvailabilities,
-    }),
-  ])
-
-  revalidatePath("/settings/availability")
-  return { success: true, data: undefined }
+  const result = await callApi(
+    endpoints.schedules.availability(scheduleId),
+    { method: "PUT", body: { timeZone, availabilities: flat } },
+    "Erro ao salvar a disponibilidade.",
+  )
+  if (result.success) revalidatePath("/settings/availability")
+  return result.success ? { success: true, data: undefined } : result
 }

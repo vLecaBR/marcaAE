@@ -50,8 +50,10 @@ export function CalendarPicker({
   function isDateAvailable(date: Date): boolean {
     if (isBefore(date, today)) return false
     if (isBefore(maxDate, date)) return false
-    const key = format(date, "yyyy-MM-dd")
-    return availableSet.has(key)
+    // Sem lista pré-computada (API-driven): habilita todos os dias no horizonte; o dia sem
+    // horários mostra "sem horários" ao ser aberto. Com lista, respeita-a.
+    if (availableSet.size === 0) return true
+    return availableSet.has(format(date, "yyyy-MM-dd"))
   }
 
   function isDateSelected(date: Date): boolean {
@@ -106,14 +108,15 @@ export function CalendarPicker({
               key={idx}
               disabled={!available || !inMonth}
               onClick={() => onSelectDate(dateKey)}
+              style={selected ? { background: "var(--brand)" } : undefined}
               className={cn(
                 "aspect-square rounded-lg text-sm transition flex items-center justify-center relative",
                 !inMonth && "opacity-0 pointer-events-none",
                 inMonth && !available && "text-muted-foreground/40 cursor-not-allowed",
                 inMonth && available && !selected &&
-                  "bg-violet-50 text-violet-700 hover:bg-violet-100 cursor-pointer dark:bg-violet-900/30 dark:text-violet-400 dark:hover:bg-violet-900/50",
+                  "bg-[var(--brand)]/10 text-foreground hover:bg-[var(--brand)]/20 cursor-pointer",
                 selected &&
-                  "bg-primary text-primary-foreground font-semibold shadow-md"
+                  "text-white font-semibold shadow-md"
               )}
             >
               {format(date, "d")}

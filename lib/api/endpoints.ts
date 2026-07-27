@@ -31,6 +31,7 @@ export const endpoints = {
     status: (id: string) => `/event-types/${id}/status`,
   },
   schedules: {
+    root: "/schedules",
     availability: (id: string) => `/schedules/${id}/availability`,
     exceptions: (id: string) => `/schedules/${id}/exceptions`,
     exception: (id: string) => `/exceptions/${id}`,

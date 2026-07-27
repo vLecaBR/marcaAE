@@ -1,6 +1,6 @@
-import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
+import { getMe } from "@/lib/api/session"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
@@ -18,10 +18,10 @@ import {
 } from "lucide-react"
 
 export default async function RootPage() {
-  const session = await auth()
+  const me = await getMe()
 
-  if (session?.user) {
-    if (!session.user.onboarded) redirect("/onboarding")
+  if (me) {
+    if (!me.onboarded) redirect("/onboarding")
     redirect("/dashboard")
   }
 

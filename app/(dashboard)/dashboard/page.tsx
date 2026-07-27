@@ -1,5 +1,7 @@
 import { requireOnboarded } from "@/lib/auth/guards"
-import { prisma } from "@/lib/prisma"
+import { serverApiFetch } from "@/lib/api/http-client"
+import { endpoints } from "@/lib/api/endpoints"
+import type { BookingListItemDto } from "@/lib/api/types"
 import Link from "next/link"
 import type { Metadata } from "next"
 import { Card } from "@/components/ui/card"
@@ -8,9 +10,6 @@ import { CopyLinkButton } from "@/components/dashboard/copy-link-button"
 import { Stagger, StaggerItem } from "@/components/motion/primitives"
 import { Calendar, Clock, Video, Users, CheckCircle2, ArrowUpRight } from "lucide-react"
 import { isToday, isTomorrow, format } from "date-fns"
-
-// NOTA (Fase 1/F5): a leitura de dados abaixo ainda usa Prisma (legado). Será migrada para
-// os endpoints da API .NET (`GET /bookings`, `GET /finance/summary`) — ver docs/backend-backlog.md.
 
 export const metadata: Metadata = { title: "Dashboard" }
 
@@ -29,61 +28,30 @@ const COLOR_MAP: Record<string, string> = {
 export default async function DashboardPage() {
   const user = await requireOnboarded()
 
-  const [eventTypes, bookingStats, upcomingBookings] = await Promise.all([
-    // Event types com contagem de bookings
-    prisma.eventType.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: "asc" },
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        duration: true,
-        color: true,
-        isActive: true,
-        locationType: true,
-        _count: { select: { bookings: true } },
-      },
-    }),
+  // Fonte única: API .NET (`GET /bookings`). Stats e próximas consultas derivam desta lista.
+  const list = await serverApiFetch<BookingListItemDto[]>(endpoints.bookings.root).catch(
+    () => [] as BookingListItemDto[],
+  )
+  const now = new Date()
+  const all = (list ?? []).map((b) => ({
+    uid: b.uid,
+    guestName: b.guestName,
+    status: b.status,
+    startTime: new Date(b.startTime),
+    eventType: { title: b.eventType?.title ?? "Consulta", color: b.eventType?.color ?? "TEAL" },
+  }))
 
-    // Stats gerais de bookings
-    prisma.booking.groupBy({
-      by: ["status"],
-      where: { userId: user.id },
-      _count: { _all: true },
-    }),
+  const totalBookings = all.length
+  const confirmedCount = all.filter((b) => b.status === "CONFIRMED").length
+  const pendingCount = all.filter((b) => b.status === "PENDING").length
+  const cancelledCount = all.filter((b) => b.status === "CANCELLED").length
 
-    // Próximos agendamentos
-    prisma.booking.findMany({
-      where: {
-        userId: user.id,
-        status: { in: ["CONFIRMED", "PENDING"] },
-        startTime: { gte: new Date() },
-      },
-      orderBy: { startTime: "asc" },
-      take: 5,
-      select: {
-        id: true,
-        uid: true,
-        guestName: true,
-        guestEmail: true,
-        startTime: true,
-        endTime: true,
-        status: true,
-        eventType: {
-          select: { title: true, color: true, duration: true, locationType: true },
-        },
-      },
-    }),
-  ])
+  const upcomingBookings = all
+    .filter((b) => (b.status === "CONFIRMED" || b.status === "PENDING") && b.startTime >= now)
+    .sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
+    .slice(0, 5)
 
-  // Monta stats
-  const totalBookings = bookingStats.reduce((acc: number, s: any) => acc + s._count._all, 0)
-  const confirmedCount = bookingStats.find((s: any) => s.status === "CONFIRMED")?._count._all ?? 0
-  const pendingCount   = bookingStats.find((s: any) => s.status === "PENDING")?._count._all ?? 0
-  const cancelledCount = bookingStats.find((s: any) => s.status === "CANCELLED")?._count._all ?? 0
-
-  const todayCount = upcomingBookings.filter(b => isToday(b.startTime)).length
+  const todayCount = upcomingBookings.filter((b) => isToday(b.startTime)).length
 
   const firstName = user.username ?? user.email.split("@")[0]
   const username  = user.username
@@ -150,7 +118,7 @@ export default async function DashboardPage() {
               </div>
             ) : (
               upcomingBookings.map((m) => (
-                <div key={m.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition">
+                <div key={m.uid} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${COLOR_MAP[m.eventType.color] || "from-brand-primary to-care"} shrink-0 flex items-center justify-center text-white text-sm`} style={{ fontWeight: 600 }}>
                       {getInitials(m.guestName)}

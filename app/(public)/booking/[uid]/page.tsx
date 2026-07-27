@@ -1,5 +1,8 @@
-import { prisma } from "@/lib/prisma"
 import { notFound } from "next/navigation"
+import { serverApiFetch } from "@/lib/api/http-client"
+import { endpoints } from "@/lib/api/endpoints"
+import { isApiError } from "@/lib/api/problem-details"
+import type { BookingDetailDto } from "@/lib/api/booking-types"
 import { formatInTimeZone } from "date-fns-tz"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
@@ -135,38 +138,35 @@ const LOCATION_LABELS: Record<string, string> = {
 export default async function BookingConfirmationPage({ params }: Props) {
   const { uid } = await params
 
-  const booking = await prisma.booking.findUnique({
-    where: { uid },
-    select: {
-      uid:            true,
-      guestName:      true,
-      guestEmail:     true,
-      guestPhone:     true,
-      guestNotes:     true,
-      guestTimeZone:  true,
-      startTime:      true,
-      endTime:        true,
-      status:         true,
-      cancelReason:   true,
-      meetingUrl:     true,
-      eventType: {
-        select: {
-          title:        true,
-          duration:     true,
-          locationType: true,
-          user: {
-            select: {
-              name:     true,
-              image:    true,
-              username: true,
-            },
-          },
-        },
-      },
-    },
-  })
+  // Detalhe da consulta — via API .NET (`GET /bookings/{uid}`, público). Sem Prisma.
+  let dto: BookingDetailDto
+  try {
+    dto = await serverApiFetch<BookingDetailDto>(endpoints.bookings.byUid(uid))
+  } catch (err) {
+    if (isApiError(err) && err.kind === "not_found") notFound()
+    throw err
+  }
 
-  if (!booking) notFound()
+  // Adapta o DTO plano da API à forma aninhada que o restante da página consome.
+  const booking = {
+    uid: dto.uid,
+    guestName: dto.guestName,
+    guestEmail: dto.guestEmail,
+    guestPhone: null as string | null,
+    guestNotes: null as string | null,
+    guestTimeZone: dto.guestTimeZone,
+    startTime: dto.startTime,
+    endTime: dto.endTime,
+    status: dto.status,
+    cancelReason: null as string | null,
+    meetingUrl: dto.meetingUrl,
+    eventType: {
+      title: dto.eventTitle,
+      duration: Math.max(0, Math.round((new Date(dto.endTime).getTime() - new Date(dto.startTime).getTime()) / 60000)),
+      locationType: dto.locationType,
+      user: { name: dto.ownerName, image: null as string | null, username: "" },
+    },
+  }
 
   // Fallback seguro para status não mapeado
   const config = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG["CONFIRMED"]

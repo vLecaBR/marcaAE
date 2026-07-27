@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { formatInTimeZone } from "date-fns-tz"
-import type { Slot } from "@/lib/scheduling/types"
+import type { Slot } from "@/lib/api/booking-types"
 import { cn } from "@/lib/utils"
 
 interface TimeSlotPickerProps {
@@ -60,20 +60,20 @@ export function TimeSlotPicker({
 
   return (
     <div className="flex h-full flex-col">
-      <p className="mb-1 text-sm font-medium capitalize text-white">
+      <p className="mb-1 text-sm font-medium capitalize text-foreground">
         {dateLabel}
       </p>
-      <p className="mb-5 text-xs text-zinc-600">
+      <p className="mb-5 text-xs text-muted-foreground">
         {duration} min · {viewerTimeZone}
       </p>
 
       {loading ? (
         <div className="flex flex-1 items-center justify-center py-8">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-700 border-t-violet-500" />
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-border border-t-[var(--brand)]" />
         </div>
       ) : realSlots.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center py-8 text-center">
-          <p className="text-sm text-zinc-600">
+          <p className="text-sm text-muted-foreground">
             Nenhum horário disponível neste dia.
           </p>
         </div>
@@ -90,9 +90,9 @@ export function TimeSlotPicker({
                 key={idx}
                 onClick={() => onSelectSlot(slot)}
                 className={cn(
-                  "w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3",
-                  "text-left text-sm font-medium text-white transition-all",
-                  "hover:border-violet-500/60 hover:bg-violet-600/10 hover:text-violet-300"
+                  "w-full rounded-xl border border-border bg-card px-4 py-3",
+                  "text-left text-sm font-medium text-foreground transition-all",
+                  "hover:border-[var(--brand)] hover:bg-[var(--brand)]/10"
                 )}
               >
                 {timeLabel}

@@ -1,11 +1,17 @@
 "use client"
 
+/**
+ * Lista de serviços (tipos de consulta) em formato de **lista limpa e densa** (estilo sistema
+ * clínico), em vez de cards volumosos. Cada linha é um `EventTypeRow`.
+ */
+
 import { useState } from "react"
-import { EventTypeCard } from "./event-type-card"
+import { EventTypeRow } from "./event-type-row"
 import { EventTypeForm } from "./event-type-form"
 import type { EventTypeInput } from "@/lib/validators/event-type"
 import { Card } from "@/components/ui/card"
-import { Plus } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Plus, Layers } from "lucide-react"
 
 type EventType = {
   id: string
@@ -22,7 +28,7 @@ type EventType = {
   locationType: EventTypeInput["locationType"]
   locationValue: string | null
   price?: number | null
-  questions?: any[]
+  questions?: unknown[]
   teamId?: string | null
   _count: { bookings: number }
 }
@@ -30,7 +36,7 @@ type EventType = {
 interface EventTypeListProps {
   eventTypes: EventType[]
   username: string
-  teams?: { id: string, name: string }[]
+  teams?: { id: string; name: string }[]
 }
 
 export function EventTypeList({ eventTypes, username, teams = [] }: EventTypeListProps) {
@@ -41,7 +47,6 @@ export function EventTypeList({ eventTypes, username, teams = [] }: EventTypeLis
     setEditing(et)
     setIsFormOpen(true)
   }
-
   function handleClose() {
     setEditing(null)
     setIsFormOpen(false)
@@ -49,27 +54,32 @@ export function EventTypeList({ eventTypes, username, teams = [] }: EventTypeLis
 
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {eventTypes.map((et) => (
-          <EventTypeCard
-            key={et.id}
-            eventType={et}
-            username={username}
-            onEdit={() => handleEdit(et)}
-          />
-        ))}
-
-        {/* Botão de novo evento */}
-        <Card 
-          onClick={() => setIsFormOpen(true)}
-          className="p-5 rounded-2xl border-dashed border-2 border-border hover:border-primary/50 hover:bg-violet-50/30 dark:hover:bg-violet-900/10 transition cursor-pointer flex flex-col items-center justify-center min-h-[180px] text-muted-foreground shadow-none"
-        >
-          <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-3 text-muted-foreground">
-            <Plus size={20}/>
-          </div>
-          <div className="text-sm font-medium">Criar novo tipo de evento</div>
-        </Card>
+      <div className="flex justify-end">
+        <Button onClick={() => setIsFormOpen(true)} className="rounded-xl h-10 gap-1.5">
+          <Plus size={16} /> Novo serviço
+        </Button>
       </div>
+
+      {eventTypes.length === 0 ? (
+        <Card className="mt-4 rounded-2xl border-dashed border-2 border-border py-16 text-center shadow-none">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+            <Layers size={20} />
+          </div>
+          <h3 className="text-sm font-medium">Nenhum serviço cadastrado</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Crie o primeiro tipo de consulta para começar a receber agendamentos.
+          </p>
+          <Button onClick={() => setIsFormOpen(true)} variant="outline" className="mt-4 rounded-xl gap-1.5">
+            <Plus size={15} /> Criar serviço
+          </Button>
+        </Card>
+      ) : (
+        <Card className="mt-4 rounded-2xl border-border/60 shadow-sm overflow-hidden divide-y divide-border/60">
+          {eventTypes.map((et) => (
+            <EventTypeRow key={et.id} eventType={et} username={username} onEdit={() => handleEdit(et)} />
+          ))}
+        </Card>
+      )}
 
       <EventTypeForm
         open={isFormOpen}

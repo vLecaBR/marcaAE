@@ -7,7 +7,7 @@ import { useState } from "react"
 import { formatInTimeZone } from "date-fns-tz"
 import { ptBR } from "date-fns/locale"
 import { format } from "date-fns"
-import type { Slot } from "@/lib/scheduling/types"
+import type { Slot } from "@/lib/api/booking-types"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -97,6 +97,7 @@ export function BookingForm({
       setResult({
         status: "success",
         requiresConfirm: eventType.requiresConfirm,
+        pixData: json.pix ?? null,
       })
     }
   }

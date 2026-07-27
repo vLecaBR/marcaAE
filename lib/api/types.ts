@@ -39,3 +39,111 @@ export interface ApiResult<T> {
   /** Cookies `Set-Cookie` recebidos da API (ex.: rotação de token no refresh). */
   setCookies: string[]
 }
+
+/* ── DTOs de domínio (espelham docs/backend-api.md) ─────────────────────────── */
+
+export type EventTypeColor =
+  | "SLATE" | "ROSE" | "ORANGE" | "AMBER" | "EMERALD" | "TEAL" | "CYAN" | "VIOLET" | "FUCHSIA"
+export type LocationType =
+  | "GOOGLE_MEET" | "ZOOM" | "TEAMS" | "PHONE" | "IN_PERSON" | "CUSTOM"
+export type ExceptionType = "BLOCKED" | "VACATION" | "OVERRIDE"
+export type TeamRoleName = "OWNER" | "ADMIN" | "MEMBER"
+export type BookingStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "RESCHEDULED" | "NO_SHOW"
+export type Theme = "DARK" | "LIGHT" | "SYSTEM"
+
+/** `GET /event-types` → item de lista. */
+export interface EventTypeSummaryDto {
+  id: string
+  title: string
+  slug: string
+  description: string | null
+  duration: number
+  color: EventTypeColor
+  isActive: boolean
+  requiresConfirm: boolean
+  locationType: LocationType
+  price: number | null
+  currency: string
+  bookingCount: number
+}
+
+/** `GET /schedules` → agenda com janelas e exceções. */
+export interface ScheduleDto {
+  id: string
+  name: string
+  timeZone: string
+  isDefault: boolean
+  availabilities: { dayOfWeek: number; startTime: string; endTime: string }[]
+  exceptions: ExceptionItemDto[]
+}
+
+export interface ExceptionItemDto {
+  id: string
+  date: string
+  type: ExceptionType
+  startTime: string | null
+  endTime: string | null
+  reason: string | null
+}
+
+/** `GET /teams` → item de lista (com o papel do usuário). */
+export interface TeamSummaryDto {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  logo: string | null
+  theme: Theme
+  brandColor: string | null
+  role: TeamRoleName
+  memberCount: number
+}
+
+/** `GET /teams/{id}` → detalhe + membros. */
+export interface TeamDetailDto extends Omit<TeamSummaryDto, "memberCount"> {
+  members: TeamMemberDto[]
+}
+
+export interface TeamMemberDto {
+  userId: string
+  name: string | null
+  email: string
+  role: TeamRoleName
+}
+
+/** `GET /teams/{teamId}/billing` → status da assinatura. */
+export interface TeamBillingDto {
+  teamId: string
+  status: string
+  active: boolean
+  currentPeriodEnd: string | null
+}
+
+/** `GET /bookings` → item de lista do profissional. */
+export interface BookingListItemDto {
+  uid: string
+  status: BookingStatus
+  paymentStatus?: PaymentStatus
+  startTime: string
+  endTime: string
+  guestName: string
+  guestEmail: string
+  guestPhone: string | null
+  eventType: {
+    title: string
+    color: EventTypeColor
+    duration: number
+    locationType: LocationType
+  }
+}
+
+/** `GET /public/{username}` → perfil público (usado para pré-preencher o perfil). */
+export interface PublicProfileDto {
+  username: string
+  name: string | null
+  bio: string | null
+  image: string | null
+  brandColor: string | null
+  theme: Theme
+  timeZone: string
+}

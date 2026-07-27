@@ -1,26 +1,37 @@
 "use client"
 
+/**
+ * Casca do agendamento público. Sem `lib/scheduling` (Prisma removido): a disponibilidade por dia
+ * vem de `GET /api/slots` (proxy do `.NET`), buscada pelo `TimeSlotPicker` quando o paciente toca
+ * numa data. Mobile-first: seleção de data → horários → formulário, em etapas.
+ */
+
 import { useState, useEffect } from "react"
 import dynamic from "next/dynamic"
 import Image from "next/image"
-import type { Slot } from "@/lib/scheduling/types"
-import { cn } from "@/lib/utils"
+import type { Slot } from "@/lib/api/booking-types"
 import { Card } from "@/components/ui/card"
 import { Logo } from "@/components/ui/logo"
 import { Clock, Video, Globe, ArrowLeft, Calendar as CalendarIcon, Phone, MapPin, Link as LinkIcon } from "lucide-react"
 import Link from "next/link"
 
-const BookingForm = dynamic(() => import("./booking-form").then(m => m.BookingForm), {
-  loading: () => <div className="flex justify-center p-12"><div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-500 border-t-transparent" /></div>
+const spinner = (
+  <div className="flex justify-center p-12">
+    <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--brand)] border-t-transparent" />
+  </div>
+)
+
+const BookingForm = dynamic(() => import("./booking-form").then((m) => m.BookingForm), {
+  loading: () => spinner,
 })
-const TimeSlotPicker = dynamic(() => import("./time-slot-picker").then(m => m.TimeSlotPicker), {
-  loading: () => <div className="flex justify-center p-12"><div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-500 border-t-transparent" /></div>
+const TimeSlotPicker = dynamic(() => import("./time-slot-picker").then((m) => m.TimeSlotPicker), {
+  loading: () => spinner,
 })
-const CalendarPicker = dynamic(() => import("./calendar-picker").then(m => m.CalendarPicker), {
-  loading: () => <div className="h-[300px] w-full animate-pulse rounded-xl bg-muted/50" />
+const CalendarPicker = dynamic(() => import("./calendar-picker").then((m) => m.CalendarPicker), {
+  loading: () => <div className="h-[300px] w-full animate-pulse rounded-xl bg-muted/50" />,
 })
 
-const LOCATION_LABELS: Record<string, { label: string, icon: React.ElementType }> = {
+const LOCATION_LABELS: Record<string, { label: string; icon: React.ElementType }> = {
   GOOGLE_MEET: { label: "Google Meet", icon: Video },
   ZOOM: { label: "Zoom", icon: Video },
   TEAMS: { label: "Teams", icon: Video },
@@ -35,7 +46,7 @@ interface Props {
   eventType: {
     id: string; title: string; description: string | null
     duration: number; color: string; locationType: string
-    price: number | null; questions?: any[]
+    price: number | null; questions?: unknown[]
     requiresConfirm: boolean; beforeEventBuffer: number
     afterEventBuffer: number; bookingLimitDays: number | null
   }
@@ -45,68 +56,30 @@ interface Props {
     theme?: string
     brandColor?: string | null
   }
-  schedule: {
-    timeZone: string
-    availabilities: { dayOfWeek: number; startTime: string; endTime: string }[]
-    exceptions: {
-      date: Date; type: "BLOCKED" | "VACATION" | "OVERRIDE"
-      startTime: string | null; endTime: string | null
-    }[]
-  }
-  initialAvailableDates: string[]
+  /** Se omitido, o calendário habilita todos os dias no horizonte (dia vazio mostra "sem horários"). */
+  availableDates?: string[]
 }
 
-export function BookingPageShell({ eventType, owner, schedule, initialAvailableDates }: Props) {
+export function BookingPageShell({ eventType, owner, availableDates = [] }: Props) {
   const [step, setStep] = useState<Step>("calendar")
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null)
   const [viewerTimeZone, setViewerTimeZone] = useState(owner.timeZone)
-  const [groupedSlots, setGroupedSlots] = useState<Record<string, Slot[]>>({})
-  const [availableDates, setAvailableDates] = useState(initialAvailableDates)
 
+  // Detecta o fuso do paciente para exibir os horários "no seu fuso" (spec §4.3).
   useEffect(() => {
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
-      if (tz !== owner.timeZone) {
-        setViewerTimeZone(tz)
-
-        // dynamically load heavy logic only if timezone differs
-        Promise.all([
-          import("date-fns"),
-          import("@/lib/scheduling/availability"),
-          import("@/lib/scheduling/slots")
-        ]).then(([dateFns, availability, slotsMod]) => {
-          const dateFrom = dateFns.startOfDay(new Date())
-          const dateTo = dateFns.addDays(dateFrom, eventType.bookingLimitDays ?? 60)
-
-          const windows = availability.buildAvailableWindows(schedule, dateFrom, dateTo)
-          const slots = slotsMod.computeAvailableSlots(windows, [], {
-            userId: owner.id,
-            eventDuration: eventType.duration,
-            beforeBuffer: eventType.beforeEventBuffer,
-            afterBuffer: eventType.afterEventBuffer,
-            dateFrom,
-            dateTo,
-            viewerTimeZone: tz,
-            bookingLimitDays: eventType.bookingLimitDays ?? undefined,
-          })
-
-          setGroupedSlots(slotsMod.groupSlotsByDate(slots, tz))
-          setAvailableDates(slotsMod.getAvailableDates(slots, tz))
-        })
-      }
-    } catch (e) {
-      // Ignora erro se Intl não estiver disponível
+      if (tz) setViewerTimeZone(tz)
+    } catch {
+      /* Intl indisponível: mantém o fuso do profissional */
     }
-  }, [owner.timeZone, owner.id, eventType, schedule])
-
-  const slotsForSelectedDate = selectedDate ? (groupedSlots[selectedDate] ?? []) : []
+  }, [])
 
   function handleSelectSlot(slot: Slot) {
     setSelectedSlot(slot)
     setStep("form")
   }
-
   function handleBack() {
     setSelectedSlot(null)
     setStep("calendar")
@@ -114,14 +87,16 @@ export function BookingPageShell({ eventType, owner, schedule, initialAvailableD
 
   const LocIcon = LOCATION_LABELS[eventType.locationType]?.icon ?? MapPin
   const locLabel = LOCATION_LABELS[eventType.locationType]?.label ?? "Local"
-  
   const userInitials = owner.name?.[0]?.toUpperCase() ?? "U"
 
   return (
     <div className="min-h-screen bg-muted/30">
       <header className="px-6 py-5 bg-background border-b border-border/60">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <Link href={`/${owner.username}`} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+          <Link
+            href={`/${owner.username}`}
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+          >
             <ArrowLeft size={16} /> Voltar
           </Link>
           <Link href="/">
@@ -133,7 +108,7 @@ export function BookingPageShell({ eventType, owner, schedule, initialAvailableD
       <main className="max-w-5xl mx-auto px-4 md:px-6 py-10">
         <Card className="rounded-2xl border-border/60 overflow-hidden shadow-sm p-0">
           <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr]">
-            {/* Left: event details */}
+            {/* Detalhes do serviço */}
             <div className="p-7 border-b lg:border-b-0 lg:border-r border-border/60 bg-card">
               {owner.image ? (
                 <Image
@@ -141,11 +116,14 @@ export function BookingPageShell({ eventType, owner, schedule, initialAvailableD
                   alt={owner.name ?? ""}
                   width={48}
                   height={48}
-                  priority={true}
+                  priority
                   className="w-12 h-12 rounded-full ring-2 ring-background shrink-0 object-cover mb-4"
                 />
               ) : (
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white mb-4" style={{ fontWeight: 600 }}>
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center text-white mb-4"
+                  style={{ background: "var(--brand)", fontWeight: 600 }}
+                >
                   {userInitials}
                 </div>
               )}
@@ -166,8 +144,12 @@ export function BookingPageShell({ eventType, owner, schedule, initialAvailableD
                 </div>
                 {selectedSlot && (
                   <div className="flex items-center gap-2.5 text-foreground pt-2 mt-2 border-t border-border">
-                    <CalendarIcon size={16} className="text-primary" />
-                    {new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full', timeStyle: 'short', timeZone: viewerTimeZone }).format(new Date(selectedSlot.start))}
+                    <CalendarIcon size={16} style={{ color: "var(--brand)" }} />
+                    {new Intl.DateTimeFormat("pt-BR", {
+                      dateStyle: "full",
+                      timeStyle: "short",
+                      timeZone: viewerTimeZone,
+                    }).format(new Date(selectedSlot.startUtc))}
                   </div>
                 )}
               </div>
@@ -179,7 +161,7 @@ export function BookingPageShell({ eventType, owner, schedule, initialAvailableD
               )}
             </div>
 
-            {/* Right: calendar + slots, or form */}
+            {/* Calendário + horários, ou formulário */}
             {step === "calendar" ? (
               <div className="p-7 grid grid-cols-1 md:grid-cols-[1fr_180px] gap-6">
                 <div>
@@ -196,13 +178,17 @@ export function BookingPageShell({ eventType, owner, schedule, initialAvailableD
 
                 <div>
                   <div className="text-sm mb-3" style={{ fontWeight: 600 }}>
-                    {selectedDate ? new Intl.DateTimeFormat('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' }).format(new Date(selectedDate + 'T00:00:00')) : "Escolha um dia"}
+                    {selectedDate
+                      ? new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "2-digit", month: "short" }).format(
+                          new Date(selectedDate + "T00:00:00"),
+                        )
+                      : "Escolha um dia"}
                   </div>
                   {!selectedDate ? (
-                     <div className="text-sm text-muted-foreground">Selecione uma data no calendário.</div>
+                    <div className="text-sm text-muted-foreground">Selecione uma data no calendário.</div>
                   ) : (
                     <TimeSlotPicker
-                      slots={slotsForSelectedDate}
+                      slots={[]}
                       selectedDate={selectedDate}
                       viewerTimeZone={viewerTimeZone}
                       duration={eventType.duration}
