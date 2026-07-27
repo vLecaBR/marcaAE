@@ -25,6 +25,11 @@ public sealed class ReminderJob(
             .Where(b => b.Status == BookingStatus.CONFIRMED
                         && !b.ReminderSent
                         && b.StartTime >= now && b.StartTime <= until)
+            // Ordenação determinística antes do row-limiting (Take): processa primeiro as consultas
+            // mais próximas de começar; ThenBy(Id) desempata para resultado previsível (corrige o
+            // aviso do EF Core: "row limiting operator without an OrderBy").
+            .OrderBy(b => b.StartTime)
+            .ThenBy(b => b.Id)
             .Take(50)
             .ToListAsync(cancellationToken);
 
