@@ -103,7 +103,7 @@ export default async function DashboardLayout({
             <NavLink href="/dashboard/event-types" icon={<Layers />}>Tipos de consulta</NavLink>
             <NavLink href="/dashboard/recebimentos" icon={<Wallet />}>Recebimentos</NavLink>
             <NavLink href="/dashboard/financeiro" icon={<BarChart3 />}>Financeiro</NavLink>
-            <NavLink href="/dashboard/teams" icon={<Users />}>Clínicas</NavLink>
+            <NavLink href="/dashboard/team" icon={<Users />}>Clínica</NavLink>
           </div>
 
           <div
@@ -146,7 +146,7 @@ export default async function DashboardLayout({
         <NavLink href="/dashboard/bookings" icon={<Calendar />} variant="mobile">Agenda</NavLink>
         <NavLink href="/dashboard/event-types" icon={<Layers />} variant="mobile">Consultas</NavLink>
         <NavLink href="/dashboard/recebimentos" icon={<Wallet />} variant="mobile">Recebe</NavLink>
-        <NavLink href="/dashboard/teams" icon={<Users />} variant="mobile">Clínicas</NavLink>
+        <NavLink href="/dashboard/team" icon={<Users />} variant="mobile">Clínica</NavLink>
         <NavLink href="/settings/profile" icon={<SettingsIcon />} variant="mobile">Ajustes</NavLink>
       </nav>
 

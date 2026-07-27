@@ -25,3 +25,11 @@ export const inviteMemberSchema = z.object({
 })
 
 export type InviteMemberInput = z.infer<typeof inviteMemberSchema>
+
+export const updateMemberRoleSchema = z.object({
+  teamId: z.string().cuid(),
+  userId: z.string(),
+  role: z.enum(["ADMIN", "MEMBER"]),
+})
+
+export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleSchema>
