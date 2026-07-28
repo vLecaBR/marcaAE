@@ -27,8 +27,8 @@ export function CheckoutButton({ teamId, isSubscribed }: { teamId: string, isSub
       className={cn(
         "flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium transition-all active:scale-[0.98]",
         isSubscribed
-          ? "bg-zinc-800 text-white hover:bg-zinc-700"
-          : "bg-violet-600 text-white hover:bg-violet-500"
+          ? "bg-secondary text-secondary-foreground hover:bg-secondary/70"
+          : "bg-brand-primary text-white hover:bg-brand-primary/90"
       )}
     >
       {loading ? (

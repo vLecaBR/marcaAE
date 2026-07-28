@@ -21,8 +21,6 @@ const COLOR_MAP: Record<string, string> = {
   EMERALD: "from-emerald-500 to-emerald-600",
   TEAL:    "from-teal-500 to-teal-600",
   CYAN:    "from-cyan-500 to-cyan-600",
-  VIOLET:  "from-violet-500 to-violet-600",
-  FUCHSIA: "from-fuchsia-500 to-fuchsia-600",
 }
 
 export default async function DashboardPage() {

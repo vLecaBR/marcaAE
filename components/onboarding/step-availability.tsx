@@ -111,15 +111,15 @@ export function StepAvailability({
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold text-white">Sua disponibilidade</h2>
-        <p className="mt-1 text-sm text-zinc-400">
+        <h2 className="text-lg font-semibold text-foreground">Sua disponibilidade</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
           Defina os dias e horários em que você aceita agendamentos.
         </p>
       </div>
 
       {serverError && (
-        <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3">
-          <p className="text-sm text-rose-400">{serverError}</p>
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3">
+          <p className="text-sm text-destructive">{serverError}</p>
         </div>
       )}
 
@@ -136,8 +136,8 @@ export function StepAvailability({
               className={cn(
                 "flex flex-col sm:flex-row sm:items-start gap-4 rounded-xl border px-4 py-3 transition-all",
                 isEnabled
-                  ? "border-zinc-700 bg-zinc-800/60"
-                  : "border-zinc-800 bg-zinc-900/40"
+                  ? "border-border bg-muted"
+                  : "border-border/60 bg-card"
               )}
             >
               {/* Header do Dia (Toggle + Nome) */}
@@ -150,8 +150,8 @@ export function StepAvailability({
                   />
                   <div className={cn(
                     "h-5 w-9 rounded-full border transition-all",
-                    "peer-checked:bg-violet-600 peer-checked:border-violet-600",
-                    "bg-zinc-700 border-zinc-600",
+                    "peer-checked:bg-brand-primary peer-checked:border-brand-primary",
+                    "bg-switch-background border-border",
                     "after:absolute after:top-[2px] after:left-[2px]",
                     "after:h-4 after:w-4 after:rounded-full after:bg-white",
                     "after:transition-all peer-checked:after:translate-x-full"
@@ -159,7 +159,7 @@ export function StepAvailability({
                 </label>
                 <span className={cn(
                   "text-sm font-medium",
-                  isEnabled ? "text-white" : "text-zinc-600"
+                  isEnabled ? "text-foreground" : "text-muted-foreground"
                 )}>
                   {DAY_LABELS[index]}
                 </span>
@@ -173,16 +173,16 @@ export function StepAvailability({
                       <div key={iIndex} className="flex flex-wrap items-center gap-2">
                         <select
                           {...register(`availabilities.${index}.intervals.${iIndex}.startTime`)}
-                          className="w-20 sm:w-24 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm text-white outline-none focus:border-violet-500 transition-colors"
+                          className="w-20 sm:w-24 rounded-lg border border-border bg-input-background px-2 py-1.5 text-sm text-foreground outline-none focus:border-brand-primary transition-colors"
                         >
                           {TIME_OPTIONS.map((t) => (
                             <option key={t} value={t}>{t}</option>
                           ))}
                         </select>
-                        <span className="text-zinc-500 text-xs">até</span>
+                        <span className="text-muted-foreground text-xs">até</span>
                         <select
                           {...register(`availabilities.${index}.intervals.${iIndex}.endTime`)}
-                          className="w-20 sm:w-24 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm text-white outline-none focus:border-violet-500 transition-colors"
+                          className="w-20 sm:w-24 rounded-lg border border-border bg-input-background px-2 py-1.5 text-sm text-foreground outline-none focus:border-brand-primary transition-colors"
                         >
                           {TIME_OPTIONS.map((t) => (
                             <option key={t} value={t}>{t}</option>
@@ -192,7 +192,7 @@ export function StepAvailability({
                         <button
                           type="button"
                           onClick={() => removeInterval(index, iIndex)}
-                          className="ml-1 flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-800 hover:text-white transition-colors"
+                          className="ml-1 flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-input-background hover:text-foreground transition-colors"
                           title="Remover"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -203,20 +203,20 @@ export function StepAvailability({
                     <button
                       type="button"
                       onClick={() => addInterval(index)}
-                      className="inline-flex items-center gap-1.5 text-xs font-medium text-violet-400 hover:text-violet-300 transition-colors mt-2"
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-primary hover:text-brand-primary/80 transition-colors mt-2"
                     >
                       <Plus className="h-3 w-3" />
                       Adicionar intervalo
                     </button>
 
                     {hasError && (
-                      <p className="text-xs text-rose-400 mt-2">
+                      <p className="text-xs text-destructive mt-2">
                         {hasError.message || "Intervalo inválido."}
                       </p>
                     )}
                   </>
                 ) : (
-                  <span className="text-sm text-zinc-600 sm:pt-1 block">Indisponível</span>
+                  <span className="text-sm text-muted-foreground sm:pt-1 block">Indisponível</span>
                 )}
               </div>
             </div>
@@ -225,7 +225,7 @@ export function StepAvailability({
       </div>
 
       {errors.availabilities && !Array.isArray(errors.availabilities) && (
-        <p className="text-xs text-rose-400">
+        <p className="text-xs text-destructive">
           {typeof errors.availabilities.message === "string"
             ? errors.availabilities.message
             : "Verifique os horários configurados."}
@@ -236,9 +236,9 @@ export function StepAvailability({
         type="submit"
         disabled={isSubmitting || isFinishing}
         className={cn(
-          "w-full rounded-xl bg-violet-600 px-4 py-3 text-sm font-medium text-white",
-          "transition-all hover:bg-violet-500 active:scale-[0.99]",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900",
+          "w-full rounded-xl bg-brand-primary px-4 py-3 text-sm font-medium text-white",
+          "transition-all hover:bg-brand-primary/90 active:scale-[0.99]",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
           "disabled:opacity-50 disabled:pointer-events-none"
         )}
       >

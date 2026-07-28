@@ -49,11 +49,11 @@ export function TeamList({ teams, currentUserId }: TeamListProps) {
   }
 
   const GRADIENTS = [
-    "from-violet-500 to-fuchsia-500",
-    "from-blue-500 to-cyan-500",
+    "from-brand-primary to-brand-secondary",
+    "from-brand-primary to-care",
     "from-emerald-500 to-teal-500",
-    "from-amber-500 to-orange-500",
-    "from-rose-500 to-pink-500",
+    "from-brand-secondary to-cyan-500",
+    "from-teal-500 to-cyan-500",
   ]
 
   return (
@@ -108,12 +108,12 @@ export function TeamList({ teams, currentUserId }: TeamListProps) {
         {/* Botão Nova Equipe */}
         <Card 
           onClick={() => setIsFormOpen(true)}
-          className="rounded-2xl border-dashed border-2 border-border hover:border-primary/50 hover:bg-violet-50/30 dark:hover:bg-violet-900/10 transition cursor-pointer flex flex-col items-center justify-center min-h-[220px] text-muted-foreground shadow-none p-5"
+          className="rounded-2xl border-dashed border-2 border-border hover:border-brand-primary/50 hover:bg-brand-primary/5 transition cursor-pointer flex flex-col items-center justify-center min-h-[220px] text-muted-foreground shadow-none p-5"
         >
           <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-3 text-muted-foreground">
             <Plus size={20}/>
           </div>
-          <div className="text-sm font-medium">Criar nova equipe</div>
+          <div className="text-sm font-medium">Criar nova clínica</div>
         </Card>
       </div>
 

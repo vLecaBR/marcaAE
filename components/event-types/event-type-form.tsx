@@ -4,20 +4,18 @@ import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { z } from "zod" // <-- ADICIONADO AQUI
+import { z } from "zod"
 import { eventTypeSchema, type EventTypeInput } from "@/lib/validators/event-type"
 import { upsertEventTypeAction } from "@/lib/actions/event-types"
 import { cn } from "@/lib/utils"
 
 const COLORS: { value: EventTypeInput["color"]; class: string }[] = [
-  { value: "VIOLET",  class: "bg-violet-500" },
-  { value: "ROSE",    class: "bg-rose-500" },
-  { value: "EMERALD", class: "bg-emerald-500" },
-  { value: "AMBER",   class: "bg-amber-500" },
-  { value: "CYAN",    class: "bg-cyan-500" },
   { value: "TEAL",    class: "bg-teal-500" },
+  { value: "EMERALD", class: "bg-emerald-500" },
+  { value: "CYAN",    class: "bg-cyan-500" },
+  { value: "AMBER",   class: "bg-amber-500" },
   { value: "ORANGE",  class: "bg-orange-500" },
-  { value: "FUCHSIA", class: "bg-fuchsia-500" },
+  { value: "ROSE",    class: "bg-rose-500" },
   { value: "SLATE",   class: "bg-slate-500" },
 ]
 
@@ -43,7 +41,7 @@ function slugify(value: string): string {
   return value
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
@@ -63,14 +61,14 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
     control,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<z.input<typeof eventTypeSchema>, any, EventTypeInput>({ // <-- MAGIA ACONTECE AQUI
+  } = useForm<z.input<typeof eventTypeSchema>, any, EventTypeInput>({
     resolver: zodResolver(eventTypeSchema),
     defaultValues: {
       title: "",
       slug: "",
       description: "",
       duration: 30,
-      color: "VIOLET",
+      color: "TEAL",
       isActive: true,
       requiresConfirm: false,
       beforeEventBuffer: 0,
@@ -106,7 +104,7 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
         slug: "",
         description: "",
         duration: 30,
-        color: "VIOLET",
+        color: "TEAL",
         isActive: true,
         requiresConfirm: false,
         beforeEventBuffer: 0,
@@ -144,20 +142,21 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-foreground/40 backdrop-blur-sm"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl">
+      <div className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-border/60 bg-card shadow-2xl">
         {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-800 bg-zinc-950 px-6 py-4">
-          <h2 className="text-base font-semibold text-white">
-            {isEditing ? "Editar tipo de evento" : "Novo tipo de evento"}
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/60 bg-card px-6 py-4">
+          <h2 className="text-base font-semibold text-foreground">
+            {isEditing ? "Editar tipo de consulta" : "Novo tipo de consulta"}
           </h2>
           <button
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-800 hover:text-white transition-all"
+            aria-label="Fechar"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -167,8 +166,8 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 px-6 py-5">
           {serverError && (
-            <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3">
-              <p className="text-sm text-rose-400">{serverError}</p>
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3">
+              <p className="text-sm text-destructive">{serverError}</p>
             </div>
           )}
 
@@ -176,7 +175,7 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
           <Field label="Título" error={errors.title?.message}>
             <input
               {...register("title")}
-              placeholder="Ex: Reunião de 30 minutos"
+              placeholder="Ex: Consulta de retorno"
               className={inputClass}
             />
           </Field>
@@ -185,10 +184,10 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
           <Field label="Slug (URL)" error={errors.slug?.message}>
             <input
               {...register("slug")}
-              placeholder="reuniao-30-min"
+              placeholder="consulta-retorno"
               className={inputClass}
             />
-            <p className="mt-1 text-xs text-zinc-600">
+            <p className="mt-1 text-xs text-muted-foreground">
               Aparece na URL pública do agendamento
             </p>
           </Field>
@@ -197,7 +196,7 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
           <Field label="Descrição" error={errors.description?.message}>
             <textarea
               {...register("description")}
-              placeholder="Descreva o propósito deste evento..."
+              placeholder="Descreva o propósito desta consulta..."
               rows={2}
               className={cn(inputClass, "resize-none")}
             />
@@ -214,8 +213,8 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
                   className={cn(
                     "rounded-lg border px-3 py-1.5 text-sm font-medium transition-all",
                     watch("duration") === d
-                      ? "border-violet-600 bg-violet-600/10 text-violet-400"
-                      : "border-zinc-700 bg-transparent text-zinc-400 hover:border-zinc-600 hover:text-white"
+                      ? "border-brand-primary bg-brand-primary/10 text-brand-primary"
+                      : "border-border bg-transparent text-muted-foreground hover:border-brand-primary/40 hover:text-foreground"
                   )}
                 >
                   {d} min
@@ -237,12 +236,13 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
                 <button
                   key={c.value}
                   type="button"
+                  aria-label={`Cor ${c.value}`}
                   onClick={() => setValue("color", c.value)}
                   className={cn(
-                    "h-7 w-7 rounded-full transition-all ring-offset-zinc-950",
+                    "h-7 w-7 rounded-full transition-all ring-offset-card",
                     c.class,
                     colorValue === c.value
-                      ? "ring-2 ring-white ring-offset-2"
+                      ? "ring-2 ring-brand-primary ring-offset-2"
                       : "opacity-50 hover:opacity-100"
                   )}
                 />
@@ -305,7 +305,7 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
           {/* Preço */}
           <Field label="Preço (Opcional)" error={errors.price?.message}>
             <div className="relative">
-              <span className="absolute left-3 top-2.5 text-sm text-zinc-500">R$</span>
+              <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">R$</span>
               <input
                 {...register("price", {
                   setValueAs: (v) => {
@@ -321,8 +321,8 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
                 className={cn(inputClass, "pl-9")}
               />
             </div>
-            <p className="mt-1 text-xs text-zinc-600">
-              Deixe em branco para serviços gratuitos.
+            <p className="mt-1 text-xs text-muted-foreground">
+              Deixe em branco para consultas gratuitas.
             </p>
           </Field>
 
@@ -336,17 +336,17 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
               placeholder="60"
               className={inputClass}
             />
-            <p className="mt-1 text-xs text-zinc-600">
-              Quantos dias à frente os convidados podem agendar
+            <p className="mt-1 text-xs text-muted-foreground">
+              Quantos dias à frente os pacientes podem agendar
             </p>
           </Field>
 
             {/* Flags */}
-          <div className="space-y-3 rounded-xl border border-zinc-800 p-4">
+          <div className="space-y-3 rounded-xl border border-border/60 bg-surface p-4">
             <Toggle
               label="Requer confirmação manual"
               description="Você precisa aprovar cada agendamento antes de confirmar."
-              checked={watch("requiresConfirm") ?? false} // <-- SÓ ADICIONAR O '?? false'
+              checked={watch("requiresConfirm") ?? false}
               onChange={(v) => setValue("requiresConfirm", v)}
             />
           </div>
@@ -362,23 +362,23 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
                   <option key={team.id} value={team.id}>{team.name}</option>
                 ))}
               </select>
-              <p className="mt-1 text-xs text-zinc-600">
-                Se selecionado, este evento será exibido na página da equipe.
+              <p className="mt-1 text-xs text-muted-foreground">
+                Se selecionado, esta consulta será exibida na página da clínica.
               </p>
             </Field>
           )}
 
           {/* Perguntas Customizadas */}
-          <div className="space-y-4 pt-4 border-t border-zinc-800">
+          <div className="space-y-4 pt-4 border-t border-border/60">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-medium text-white">Perguntas adicionais</h3>
-                <p className="text-xs text-zinc-500">Faça perguntas aos convidados antes de agendar.</p>
+                <h3 className="text-sm font-medium text-foreground">Perguntas adicionais</h3>
+                <p className="text-xs text-muted-foreground">Faça perguntas aos pacientes antes de agendar.</p>
               </div>
               <button
                 type="button"
                 onClick={() => appendQuestion({ label: "", type: "TEXT", required: false, order: questionFields.length })}
-                className="rounded-lg bg-zinc-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-700 transition-colors"
+                className="rounded-lg bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/70 transition-colors"
               >
                 + Adicionar
               </button>
@@ -387,26 +387,27 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
             {questionFields.length > 0 && (
               <div className="space-y-3">
                 {questionFields.map((field, index) => (
-                  <div key={field.id} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 relative group">
+                  <div key={field.id} className="rounded-xl border border-border/60 bg-surface p-4 relative group">
                     <button
                       type="button"
+                      aria-label="Remover pergunta"
                       onClick={() => removeQuestion(index)}
-                      className="absolute top-3 right-3 text-zinc-500 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-3 right-3 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
                     </button>
-                    
+
                     <div className="grid gap-3">
                       <Field label="Pergunta" error={errors.questions?.[index]?.label?.message}>
                         <input
                           {...register(`questions.${index}.label` as const)}
-                          placeholder="Ex: Qual o seu cargo?"
+                          placeholder="Ex: Qual o motivo da consulta?"
                           className={inputClass}
                         />
                       </Field>
-                      
+
                       <div className="grid grid-cols-2 gap-3">
                         <Field label="Tipo de resposta">
                           <select
@@ -418,15 +419,15 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
                             <option value="PHONE">Telefone</option>
                           </select>
                         </Field>
-                        
+
                         <div className="flex items-end pb-2">
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input
                               type="checkbox"
                               {...register(`questions.${index}.required` as const)}
-                              className="h-4 w-4 rounded border-zinc-700 bg-zinc-900 text-violet-600 focus:ring-violet-600 focus:ring-offset-zinc-950"
+                              className="h-4 w-4 rounded border-border bg-input-background text-brand-primary focus:ring-brand-primary focus:ring-offset-card"
                             />
-                            <span className="text-sm font-medium text-zinc-300">Obrigatória</span>
+                            <span className="text-sm font-medium text-foreground">Obrigatória</span>
                           </label>
                         </div>
                       </div>
@@ -442,7 +443,7 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-xl border border-zinc-700 py-2.5 text-sm font-medium text-zinc-300 transition-all hover:border-zinc-600 hover:text-white"
+              className="flex-1 rounded-xl border border-border py-2.5 text-sm font-medium text-foreground transition-all hover:bg-muted"
             >
               Cancelar
             </button>
@@ -450,8 +451,8 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
               type="submit"
               disabled={isSubmitting}
               className={cn(
-                "flex-1 rounded-xl bg-violet-600 py-2.5 text-sm font-medium text-white",
-                "transition-all hover:bg-violet-500 active:scale-[0.99]",
+                "flex-1 rounded-xl bg-brand-primary py-2.5 text-sm font-medium text-white",
+                "transition-all hover:bg-brand-primary/90 active:scale-[0.99]",
                 "disabled:opacity-50 disabled:pointer-events-none"
               )}
             >
@@ -459,7 +460,7 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
                 ? "Salvando..."
                 : isEditing
                 ? "Salvar alterações"
-                : "Criar evento"}
+                : "Criar consulta"}
             </button>
           </div>
         </form>
@@ -479,9 +480,9 @@ function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-sm font-medium text-zinc-300">{label}</label>
+      <label className="text-sm font-medium text-foreground">{label}</label>
       {children}
-      {error && <p className="text-xs text-rose-400">{error}</p>}
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   )
 }
@@ -500,17 +501,20 @@ function Toggle({
   return (
     <div className="flex items-start justify-between gap-4">
       <div>
-        <p className="text-sm font-medium text-zinc-300">{label}</p>
-        <p className="text-xs text-zinc-500">{description}</p>
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        <p className="text-xs text-muted-foreground">{description}</p>
       </div>
       <button
         type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
         onClick={() => onChange(!checked)}
         className="relative mt-0.5 inline-flex shrink-0 cursor-pointer items-center"
       >
         <div className={cn(
           "h-5 w-9 rounded-full border transition-all",
-          checked ? "bg-violet-600 border-violet-600" : "bg-zinc-700 border-zinc-600"
+          checked ? "bg-brand-primary border-brand-primary" : "bg-switch-background border-border"
         )} />
         <div className={cn(
           "absolute h-4 w-4 rounded-full bg-white shadow transition-all",
@@ -522,4 +526,4 @@ function Toggle({
 }
 
 const inputClass =
-  "w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 outline-none transition-all focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+  "w-full rounded-xl border border-border bg-input-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none transition-all focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"

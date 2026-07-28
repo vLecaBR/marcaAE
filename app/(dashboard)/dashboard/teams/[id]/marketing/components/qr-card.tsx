@@ -16,16 +16,16 @@ export function QrCard({ teamName, url, isPrintView = false }: QrCardProps) {
 
   if (isPrintView) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-center bg-white text-zinc-950 w-[210mm] min-h-[297mm]">
+      <div className="flex flex-col items-center justify-center p-12 text-center bg-white text-[#1b2a34] w-[210mm] min-h-[297mm]">
         <h1 className="text-4xl font-bold mb-4">{teamName}</h1>
-        <p className="text-xl text-zinc-600 mb-12">Escaneie o código abaixo para agendar seu horário!</p>
-        
-        <div className="p-8 border-4 border-zinc-950 rounded-3xl bg-white shadow-xl mb-12">
+        <p className="text-xl text-[#5b6b72] mb-12">Escaneie o código abaixo para agendar seu horário!</p>
+
+        <div className="p-8 border-4 border-brand-primary rounded-3xl bg-white shadow-xl mb-12">
           <QRCodeSVG 
             value={url}
             size={400}
             bgColor="#ffffff"
-            fgColor="#09090b"
+            fgColor="#1b2a34"
             level="H"
             includeMargin={false}
           />
@@ -43,25 +43,25 @@ export function QrCard({ teamName, url, isPrintView = false }: QrCardProps) {
   }
 
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-8 flex flex-col items-center justify-center text-center">
-      <div className="bg-white p-4 rounded-xl mb-6">
-        <QRCodeSVG 
+    <div className="rounded-2xl border border-border/60 bg-card p-8 flex flex-col items-center justify-center text-center">
+      <div className="bg-white p-4 rounded-xl mb-6 border border-border/60">
+        <QRCodeSVG
           value={url}
           size={200}
           bgColor="#ffffff"
-          fgColor="#09090b"
+          fgColor="#1b2a34"
           level="H"
           includeMargin={false}
         />
       </div>
-      
-      <p className="text-sm text-zinc-400 mb-6 max-w-xs mx-auto">
-        Aponte a câmera do celular para este código para acessar a página <span className="text-white font-medium">{teamName}</span>.
+
+      <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto">
+        Aponte a câmera do celular para este código para acessar a página <span className="text-foreground font-medium">{teamName}</span>.
       </p>
 
       <button
         onClick={handlePrint}
-        className="flex items-center gap-2 rounded-xl bg-violet-600 px-6 py-2.5 text-sm font-medium text-white transition-all hover:bg-violet-500 active:scale-[0.99]"
+        className="flex items-center gap-2 rounded-xl bg-brand-primary px-6 py-2.5 text-sm font-medium text-white transition-all hover:bg-brand-primary/90 active:scale-[0.99]"
       >
         <Printer className="h-4 w-4" />
         Imprimir Cartaz

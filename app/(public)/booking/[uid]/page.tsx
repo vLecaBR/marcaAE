@@ -27,7 +27,7 @@ const STATUS_CONFIG: Record<
   CONFIRMED: {
     icon: (
       <svg
-        className="h-7 w-7 text-emerald-400"
+        className="h-7 w-7 text-care"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -40,14 +40,14 @@ const STATUS_CONFIG: Record<
         />
       </svg>
     ),
-    bg:    "bg-emerald-500/10",
+    bg:    "bg-care/10",
     label: "Confirmado",
-    badge: "bg-emerald-500/10 text-emerald-400",
+    badge: "bg-care/10 text-care",
   },
   PENDING: {
     icon: (
       <svg
-        className="h-7 w-7 text-amber-400"
+        className="h-7 w-7 text-warning"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -60,14 +60,14 @@ const STATUS_CONFIG: Record<
         />
       </svg>
     ),
-    bg:    "bg-amber-500/10",
+    bg:    "bg-warning/10",
     label: "Aguardando confirmação",
-    badge: "bg-amber-500/10 text-amber-400",
+    badge: "bg-warning/10 text-warning",
   },
   CANCELLED: {
     icon: (
       <svg
-        className="h-7 w-7 text-rose-400"
+        className="h-7 w-7 text-destructive"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -80,14 +80,14 @@ const STATUS_CONFIG: Record<
         />
       </svg>
     ),
-    bg:    "bg-rose-500/10",
+    bg:    "bg-destructive/10",
     label: "Cancelado",
-    badge: "bg-rose-500/10 text-rose-400",
+    badge: "bg-destructive/10 text-destructive",
   },
   RESCHEDULED: {
     icon: (
       <svg
-        className="h-7 w-7 text-zinc-400"
+        className="h-7 w-7 text-muted-foreground"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -100,14 +100,14 @@ const STATUS_CONFIG: Record<
         />
       </svg>
     ),
-    bg:    "bg-zinc-800",
+    bg:    "bg-muted",
     label: "Reagendado",
-    badge: "bg-zinc-700 text-zinc-300",
+    badge: "bg-muted text-muted-foreground",
   },
   NO_SHOW: {
     icon: (
       <svg
-        className="h-7 w-7 text-zinc-500"
+        className="h-7 w-7 text-muted-foreground"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -120,9 +120,9 @@ const STATUS_CONFIG: Record<
         />
       </svg>
     ),
-    bg:    "bg-zinc-800",
+    bg:    "bg-muted",
     label: "Não compareceu",
-    badge: "bg-zinc-700 text-zinc-500",
+    badge: "bg-muted text-muted-foreground",
   },
 }
 
@@ -199,7 +199,7 @@ export default async function BookingConfirmationPage({ params }: Props) {
     booking.status === "CONFIRMED" || booking.status === "PENDING"
 
   return (
-    <main className="min-h-screen bg-[#09090b] px-4 py-16">
+    <main className="min-h-screen bg-surface px-4 py-16">
       <div className="mx-auto max-w-md">
 
         {/* Status icon */}
@@ -212,31 +212,31 @@ export default async function BookingConfirmationPage({ params }: Props) {
           >
             {config.icon}
           </div>
-          <h1 className="text-xl font-semibold text-white">
+          <h1 className="text-xl font-semibold text-foreground">
             {config.label}
           </h1>
 
           {booking.status === "PENDING" && (
-            <p className="mt-2 text-sm text-zinc-400">
+            <p className="mt-2 text-sm text-muted-foreground">
               {booking.eventType.user.name} receberá uma notificação e
               confirmará em breve.
             </p>
           )}
           {booking.status === "CONFIRMED" && (
-            <p className="mt-2 text-sm text-zinc-400">
+            <p className="mt-2 text-sm text-muted-foreground">
               Um e-mail de confirmação foi enviado para{" "}
-              <span className="text-white">{booking.guestEmail}</span>.
+              <span className="text-foreground font-medium">{booking.guestEmail}</span>.
             </p>
           )}
           {booking.status === "CANCELLED" && booking.cancelReason && (
-            <p className="mt-2 text-sm text-zinc-400">
+            <p className="mt-2 text-sm text-muted-foreground">
               Motivo: {booking.cancelReason}
             </p>
           )}
         </div>
 
         {/* Detalhes */}
-        <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/60 divide-y divide-zinc-800">
+        <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm divide-y divide-border/60">
 
           {/* Owner + Evento */}
           <div className="flex items-center gap-4 p-5">
@@ -244,18 +244,18 @@ export default async function BookingConfirmationPage({ params }: Props) {
               <img
                 src={booking.eventType.user.image}
                 alt={booking.eventType.user.name ?? ""}
-                className="h-10 w-10 shrink-0 rounded-full ring-1 ring-zinc-700 object-cover"
+                className="h-10 w-10 shrink-0 rounded-full ring-1 ring-border object-cover"
               />
             ) : (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-600/20 text-sm font-semibold text-violet-400">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-primary/10 text-sm font-semibold text-brand-primary">
                 {booking.eventType.user.name?.[0]?.toUpperCase() ?? "U"}
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <p className="text-xs text-zinc-500 truncate">
+              <p className="text-xs text-muted-foreground truncate">
                 {booking.eventType.user.name}
               </p>
-              <p className="font-medium text-white truncate">
+              <p className="font-medium text-foreground truncate">
                 {booking.eventType.title}
               </p>
             </div>
@@ -314,7 +314,7 @@ export default async function BookingConfirmationPage({ params }: Props) {
                     href={booking.meetingUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-violet-400 underline-offset-4 hover:underline"
+                    className="text-brand-primary underline-offset-4 hover:underline"
                   >
                     Entrar na reunião
                   </a>
@@ -335,7 +335,7 @@ export default async function BookingConfirmationPage({ params }: Props) {
 
           {/* Dados do convidado */}
           <div className="space-y-3 p-5">
-            <p className="text-xs font-medium uppercase tracking-wide text-zinc-600">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Seus dados
             </p>
             <DetailRow
@@ -381,12 +381,20 @@ export default async function BookingConfirmationPage({ params }: Props) {
           </div>
         </div>
 
+        {/* Nota de segurança/confiança (healthtech) */}
+        <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
+          <svg className="h-3.5 w-3.5 text-care" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+          </svg>
+          Seus dados são protegidos e tratados conforme a LGPD.
+        </p>
+
         {/* Ações — cancelar */}
         {isActive && (
           <div className="mt-4">
             <a
               href={`/booking/${booking.uid}/cancel`}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-800 py-3 text-sm text-zinc-500 transition-all hover:border-rose-500/40 hover:text-rose-400"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-border py-3 text-sm text-muted-foreground transition-all hover:border-destructive/40 hover:text-destructive"
             >
               <svg
                 className="h-4 w-4"
@@ -406,9 +414,9 @@ export default async function BookingConfirmationPage({ params }: Props) {
           </div>
         )}
 
-        <p className="mt-8 text-center text-xs text-zinc-700">
+        <p className="mt-8 text-center text-xs text-muted-foreground">
           Agendamento via{" "}
-          <span className="text-zinc-500 font-medium">Marca AI</span>
+          <span className="text-foreground font-medium">MarcaAí</span>
         </p>
       </div>
     </main>
@@ -426,10 +434,10 @@ function DetailRow({
 }) {
   return (
     <div className="flex items-start gap-3">
-      <span className="mt-0.5 shrink-0 text-zinc-600">{icon}</span>
+      <span className="mt-0.5 shrink-0 text-muted-foreground">{icon}</span>
       <div className="min-w-0">
-        <p className="text-xs text-zinc-600">{label}</p>
-        <div className="text-sm text-zinc-300 wrap-break-word">{value}</div>
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <div className="text-sm text-foreground wrap-break-word">{value}</div>
       </div>
     </div>
   )

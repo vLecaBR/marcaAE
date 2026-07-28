@@ -29,7 +29,7 @@ export const eventTypeSchema = z.object({
     
   color: z.enum([
     "SLATE","ROSE","ORANGE","AMBER",
-    "EMERALD","TEAL","CYAN","VIOLET","FUCHSIA",
+    "EMERALD","TEAL","CYAN",
   ]),
   isActive: z.boolean().default(true),
   requiresConfirm: z.boolean().default(false),

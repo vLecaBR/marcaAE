@@ -48,13 +48,13 @@ export function CancelFormClient({ uid, guestName }: CancelFormClientProps) {
 
   return (
     <div className="space-y-5">
-      <p className="text-sm text-zinc-400">
-        Olá, <span className="text-white">{guestName}</span>. Tem certeza que
+      <p className="text-sm text-muted-foreground">
+        Olá, <span className="text-foreground">{guestName}</span>. Tem certeza que
         deseja cancelar este agendamento?
       </p>
 
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-zinc-300">
+        <label className="text-sm font-medium text-foreground">
           Motivo do cancelamento
         </label>
         <textarea
@@ -62,15 +62,15 @@ export function CancelFormClient({ uid, guestName }: CancelFormClientProps) {
           onChange={(e) => setReason(e.target.value)}
           placeholder="Ex: Compromisso imprevisto, preciso reagendar..."
           rows={3}
-          className="w-full resize-none rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 outline-none transition-all focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
+          className="w-full resize-none rounded-xl border border-border bg-input-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none transition-all focus:border-destructive focus:ring-1 focus:ring-destructive"
         />
-        {error && <p className="text-xs text-rose-400">{error}</p>}
+        {error && <p className="text-xs text-destructive">{error}</p>}
       </div>
 
       <div className="flex gap-3">
             <a
           href={`/booking/${uid}`}
-          className="flex-1 rounded-xl border border-zinc-700 py-2.5 text-center text-sm font-medium text-zinc-300 transition-all hover:border-zinc-600 hover:text-white"
+          className="flex-1 rounded-xl border border-border py-2.5 text-center text-sm font-medium text-foreground transition-all hover:border-border hover:text-foreground"
         >
           Voltar
         </a>
@@ -78,8 +78,8 @@ export function CancelFormClient({ uid, guestName }: CancelFormClientProps) {
           onClick={handleCancel}
           disabled={loading}
           className={cn(
-            "flex-1 rounded-xl bg-rose-600 py-2.5 text-sm font-medium text-white",
-            "transition-all hover:bg-rose-500 active:scale-[0.99]",
+            "flex-1 rounded-xl bg-destructive py-2.5 text-sm font-medium text-destructive-foreground",
+            "transition-all hover:bg-destructive/90 active:scale-[0.99]",
             "disabled:opacity-50 disabled:pointer-events-none"
           )}
         >

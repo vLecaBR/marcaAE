@@ -212,7 +212,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
             <Input
               type="text"
               {...register("brandColor")}
-              placeholder="#7c3aed"
+              placeholder="#0f9e8e"
               className="h-11 rounded-xl flex-1"
             />
           </div>

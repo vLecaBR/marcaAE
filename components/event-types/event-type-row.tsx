@@ -19,7 +19,6 @@ import {
 const COLOR_DOT: Record<string, string> = {
   SLATE: "bg-slate-400", ROSE: "bg-rose-400", ORANGE: "bg-orange-400", AMBER: "bg-amber-400",
   EMERALD: "bg-emerald-400", TEAL: "bg-brand-primary", CYAN: "bg-cyan-400",
-  VIOLET: "bg-violet-400", FUCHSIA: "bg-fuchsia-400",
 }
 
 const LOCATION_ICONS: Record<string, React.ElementType> = {

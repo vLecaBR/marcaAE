@@ -43,7 +43,7 @@ export interface ApiResult<T> {
 /* ── DTOs de domínio (espelham docs/backend-api.md) ─────────────────────────── */
 
 export type EventTypeColor =
-  | "SLATE" | "ROSE" | "ORANGE" | "AMBER" | "EMERALD" | "TEAL" | "CYAN" | "VIOLET" | "FUCHSIA"
+  | "SLATE" | "ROSE" | "ORANGE" | "AMBER" | "EMERALD" | "TEAL" | "CYAN"
 export type LocationType =
   | "GOOGLE_MEET" | "ZOOM" | "TEAMS" | "PHONE" | "IN_PERSON" | "CUSTOM"
 export type ExceptionType = "BLOCKED" | "VACATION" | "OVERRIDE"

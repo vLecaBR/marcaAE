@@ -19,7 +19,7 @@ function slugify(value: string): string {
   return value
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
@@ -44,8 +44,8 @@ export function TeamForm({ open, onClose, defaultValues }: TeamFormProps) {
       name: "",
       slug: "",
       description: "",
-      theme: "DARK",
-      brandColor: "#7c3aed",
+      theme: "LIGHT",
+      brandColor: "#0f9e8e",
       ...defaultValues,
     },
   })
@@ -90,14 +90,18 @@ export function TeamForm({ open, onClose, defaultValues }: TeamFormProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
-          <h2 className="text-base font-semibold text-white">
-            {isEditing ? "Editar Equipe" : "Nova Equipe"}
+      <div className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl border border-border/60 bg-card shadow-2xl">
+        <div className="flex items-center justify-between border-b border-border/60 px-6 py-4">
+          <h2 className="text-base font-semibold text-foreground">
+            {isEditing ? "Editar clínica" : "Nova clínica"}
           </h2>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-white transition-colors">
+          <button
+            onClick={onClose}
+            aria-label="Fechar"
+            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -106,8 +110,8 @@ export function TeamForm({ open, onClose, defaultValues }: TeamFormProps) {
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 px-6 py-5">
           {serverError && (
-            <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3">
-              <p className="text-sm text-rose-400">{serverError}</p>
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3">
+              <p className="text-sm text-destructive">{serverError}</p>
             </div>
           )}
 
@@ -115,7 +119,7 @@ export function TeamForm({ open, onClose, defaultValues }: TeamFormProps) {
           {!isEditing && (
             <div className="flex items-start gap-2.5 rounded-xl border border-brand-primary/30 bg-brand-primary/10 px-4 py-3">
               <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-brand-primary" aria-hidden="true" />
-              <p className="text-sm text-zinc-200">
+              <p className="text-sm text-foreground/80">
                 Sua clínica começa com{" "}
                 <span className="font-semibold text-brand-primary">30 dias de teste grátis</span> —
                 todos os recursos premium liberados, sem cartão de crédito.
@@ -124,23 +128,23 @@ export function TeamForm({ open, onClose, defaultValues }: TeamFormProps) {
           )}
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-zinc-300">Nome da Equipe</label>
-            <input {...register("name")} placeholder="Ex: Barbearia do Zé" className={inputClass} />
-            {errors.name && <p className="text-xs text-rose-400">{errors.name.message}</p>}
+            <label className="text-sm font-medium text-foreground">Nome da clínica</label>
+            <input {...register("name")} placeholder="Ex: Clínica Bem Estar" className={inputClass} />
+            {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-zinc-300">Slug (URL)</label>
-            <input {...register("slug")} placeholder="barbearia-do-ze" className={inputClass} />
-            <p className="text-xs text-zinc-600">Aparece na URL: marca-ai-app.vercel.app/equipe/slug</p>
-            {errors.slug && <p className="text-xs text-rose-400">{errors.slug.message}</p>}
+            <label className="text-sm font-medium text-foreground">Slug (URL)</label>
+            <input {...register("slug")} placeholder="clinica-bem-estar" className={inputClass} />
+            <p className="text-xs text-muted-foreground">Aparece na URL: marca-ai-app.vercel.app/equipe/slug</p>
+            {errors.slug && <p className="text-xs text-destructive">{errors.slug.message}</p>}
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-zinc-300">Descrição (opcional)</label>
+            <label className="text-sm font-medium text-foreground">Descrição (opcional)</label>
             <textarea
               {...register("description")}
-              placeholder="Sobre a equipe..."
+              placeholder="Sobre a clínica..."
               rows={3}
               className={cn(inputClass, "resize-none")}
             />
@@ -149,42 +153,43 @@ export function TeamForm({ open, onClose, defaultValues }: TeamFormProps) {
           <div className="grid gap-6 sm:grid-cols-2">
             {/* Theme */}
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-zinc-300">
+              <label className="text-sm font-medium text-foreground">
                 Tema Público
               </label>
               <select
                 {...register("theme")}
                 className={cn(inputClass, "appearance-none")}
               >
-                <option value="DARK">Escuro (Dark Mode)</option>
                 <option value="LIGHT">Claro (Light Mode)</option>
+                <option value="DARK">Escuro (Dark Mode)</option>
                 <option value="SYSTEM">Sistema (Automático)</option>
               </select>
               {errors.theme && (
-                <p className="text-xs text-rose-400">{errors.theme.message}</p>
+                <p className="text-xs text-destructive">{errors.theme.message}</p>
               )}
             </div>
 
             {/* Brand Color */}
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-zinc-300">
+              <label className="text-sm font-medium text-foreground">
                 Cor da Marca (Hex)
               </label>
               <div className="flex gap-3">
                 <input
                   type="color"
+                  aria-label="Seletor de cor da marca"
                   {...register("brandColor")}
-                  className="h-10 w-14 rounded-xl cursor-pointer border-0 p-0"
+                  className="h-10 w-14 rounded-xl cursor-pointer border border-border p-0"
                 />
                 <input
                   type="text"
                   {...register("brandColor")}
-                  placeholder="#7c3aed"
-                  className={cn(inputClass, errors.brandColor && "border-rose-500/60 focus:border-rose-500")}
+                  placeholder="#0f9e8e"
+                  className={cn(inputClass, errors.brandColor && "border-destructive/60 focus:border-destructive")}
                 />
               </div>
               {errors.brandColor && (
-                <p className="text-xs text-rose-400">{errors.brandColor.message}</p>
+                <p className="text-xs text-destructive">{errors.brandColor.message}</p>
               )}
             </div>
           </div>
@@ -193,7 +198,7 @@ export function TeamForm({ open, onClose, defaultValues }: TeamFormProps) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-xl border border-zinc-700 py-2.5 text-sm font-medium text-zinc-300 transition-all hover:border-zinc-600 hover:text-white"
+              className="flex-1 rounded-xl border border-border py-2.5 text-sm font-medium text-foreground transition-all hover:bg-muted"
             >
               Cancelar
             </button>
@@ -201,11 +206,11 @@ export function TeamForm({ open, onClose, defaultValues }: TeamFormProps) {
               type="submit"
               disabled={isSubmitting}
               className={cn(
-                "flex-1 rounded-xl bg-violet-600 py-2.5 text-sm font-medium text-white transition-all hover:bg-violet-500 active:scale-[0.99]",
+                "flex-1 rounded-xl bg-brand-primary py-2.5 text-sm font-medium text-white transition-all hover:bg-brand-primary/90 active:scale-[0.99]",
                 "disabled:opacity-50 disabled:pointer-events-none"
               )}
             >
-              {isSubmitting ? "Salvando..." : isEditing ? "Salvar alterações" : "Criar equipe"}
+              {isSubmitting ? "Salvando..." : isEditing ? "Salvar alterações" : "Criar clínica"}
             </button>
           </div>
         </form>
@@ -214,4 +219,4 @@ export function TeamForm({ open, onClose, defaultValues }: TeamFormProps) {
   )
 }
 
-const inputClass = "w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all"
+const inputClass = "w-full rounded-xl border border-border bg-input-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary transition-all"
