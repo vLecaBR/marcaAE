@@ -5,9 +5,19 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { z } from "zod"
+import { Plus, Trash2 } from "lucide-react"
 import { eventTypeSchema, type EventTypeInput } from "@/lib/validators/event-type"
 import { upsertEventTypeAction } from "@/lib/actions/event-types"
 import { cn } from "@/lib/utils"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
 
 const COLORS: { value: EventTypeInput["color"]; class: string }[] = [
   { value: "TEAL",    class: "bg-teal-500" },
@@ -36,6 +46,10 @@ interface EventTypeFormProps {
   defaultValues?: Partial<EventTypeInput> & { id?: string }
   userTeams?: { id: string, name: string }[]
 }
+
+/** Estilo compartilhado para controles nativos (select/textarea) alinhado ao primitivo Input. */
+const controlClass =
+  "w-full rounded-xl border border-input bg-input-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
 
 function slugify(value: string): string {
   return value
@@ -136,35 +150,14 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
     }
   }
 
-  if (!open) return null
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-foreground/40 backdrop-blur-sm"
-        onClick={onClose}
-      />
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{isEditing ? "Editar tipo de consulta" : "Novo tipo de consulta"}</DialogTitle>
+        </DialogHeader>
 
-      {/* Modal */}
-      <div className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-border/60 bg-card shadow-2xl">
-        {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/60 bg-card px-6 py-4">
-          <h2 className="text-base font-semibold text-foreground">
-            {isEditing ? "Editar tipo de consulta" : "Novo tipo de consulta"}
-          </h2>
-          <button
-            onClick={onClose}
-            aria-label="Fechar"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 px-6 py-5">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           {serverError && (
             <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3">
               <p className="text-sm text-destructive">{serverError}</p>
@@ -172,33 +165,26 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
           )}
 
           {/* Título */}
-          <Field label="Título" error={errors.title?.message}>
-            <input
-              {...register("title")}
-              placeholder="Ex: Consulta de retorno"
-              className={inputClass}
-            />
+          <Field label="Título" htmlFor="et-title" error={errors.title?.message}>
+            <Input id="et-title" {...register("title")} placeholder="Ex: Consulta de retorno" aria-invalid={!!errors.title} className="rounded-xl h-10" />
           </Field>
 
           {/* Slug */}
-          <Field label="Slug (URL)" error={errors.slug?.message}>
-            <input
-              {...register("slug")}
-              placeholder="consulta-retorno"
-              className={inputClass}
-            />
+          <Field label="Slug (URL)" htmlFor="et-slug" error={errors.slug?.message}>
+            <Input id="et-slug" {...register("slug")} placeholder="consulta-retorno" aria-invalid={!!errors.slug} className="rounded-xl h-10" />
             <p className="mt-1 text-xs text-muted-foreground">
               Aparece na URL pública do agendamento
             </p>
           </Field>
 
           {/* Descrição */}
-          <Field label="Descrição" error={errors.description?.message}>
+          <Field label="Descrição" htmlFor="et-description" error={errors.description?.message}>
             <textarea
+              id="et-description"
               {...register("description")}
               placeholder="Descreva o propósito desta consulta..."
               rows={2}
-              className={cn(inputClass, "resize-none")}
+              className={cn(controlClass, "resize-none")}
             />
           </Field>
 
@@ -220,11 +206,11 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
                   {d} min
                 </button>
               ))}
-              <input
+              <Input
                 {...register("duration", { valueAsNumber: true })}
                 type="number"
                 placeholder="outro"
-                className={cn(inputClass, "w-20 py-1.5")}
+                className="w-20 rounded-xl h-9"
               />
             </div>
           </Field>
@@ -251,11 +237,8 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
           </Field>
 
           {/* Localização */}
-          <Field label="Localização" error={errors.locationType?.message}>
-            <select
-              {...register("locationType")}
-              className={cn(inputClass, "appearance-none")}
-            >
+          <Field label="Localização" htmlFor="et-location" error={errors.locationType?.message}>
+            <select id="et-location" {...register("locationType")} className={cn(controlClass, "appearance-none h-10")}>
               {LOCATION_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
@@ -265,8 +248,9 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
           {(locationTypeValue === "CUSTOM" ||
             locationTypeValue === "IN_PERSON" ||
             locationTypeValue === "PHONE") && (
-            <Field label="Detalhes da localização" error={errors.locationValue?.message}>
-              <input
+            <Field label="Detalhes da localização" htmlFor="et-location-value" error={errors.locationValue?.message}>
+              <Input
+                id="et-location-value"
                 {...register("locationValue")}
                 placeholder={
                   locationTypeValue === "PHONE"
@@ -275,38 +259,41 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
                     ? "Endereço completo"
                     : "https://..."
                 }
-                className={inputClass}
+                className="rounded-xl h-10"
               />
             </Field>
           )}
 
           {/* Buffers */}
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Buffer antes (min)" error={errors.beforeEventBuffer?.message}>
-              <input
+            <Field label="Buffer antes (min)" htmlFor="et-buffer-before" error={errors.beforeEventBuffer?.message}>
+              <Input
+                id="et-buffer-before"
                 {...register("beforeEventBuffer", { valueAsNumber: true })}
                 type="number"
                 min={0}
                 max={60}
-                className={inputClass}
+                className="rounded-xl h-10"
               />
             </Field>
-            <Field label="Buffer depois (min)" error={errors.afterEventBuffer?.message}>
-              <input
+            <Field label="Buffer depois (min)" htmlFor="et-buffer-after" error={errors.afterEventBuffer?.message}>
+              <Input
+                id="et-buffer-after"
                 {...register("afterEventBuffer", { valueAsNumber: true })}
                 type="number"
                 min={0}
                 max={60}
-                className={inputClass}
+                className="rounded-xl h-10"
               />
             </Field>
           </div>
 
           {/* Preço */}
-          <Field label="Preço (Opcional)" error={errors.price?.message}>
+          <Field label="Preço (Opcional)" htmlFor="et-price" error={errors.price?.message}>
             <div className="relative">
-              <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">R$</span>
-              <input
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+              <Input
+                id="et-price"
                 {...register("price", {
                   setValueAs: (v) => {
                     if (v === "" || v === null || isNaN(v)) return null;
@@ -318,7 +305,7 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
                 step="0.01"
                 min={0}
                 placeholder="0.00"
-                className={cn(inputClass, "pl-9")}
+                className="rounded-xl h-10 pl-9"
               />
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -327,14 +314,15 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
           </Field>
 
           {/* Limite de dias */}
-          <Field label="Agendamentos até (dias)" error={errors.bookingLimitDays?.message}>
-            <input
+          <Field label="Agendamentos até (dias)" htmlFor="et-limit" error={errors.bookingLimitDays?.message}>
+            <Input
+              id="et-limit"
               {...register("bookingLimitDays", { valueAsNumber: true })}
               type="number"
               min={1}
               max={365}
               placeholder="60"
-              className={inputClass}
+              className="rounded-xl h-10"
             />
             <p className="mt-1 text-xs text-muted-foreground">
               Quantos dias à frente os pacientes podem agendar
@@ -352,11 +340,8 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
           </div>
 
           {userTeams && userTeams.length > 0 && (
-            <Field label="Equipe" error={errors.teamId?.message}>
-              <select
-                {...register("teamId")}
-                className={cn(inputClass, "appearance-none")}
-              >
+            <Field label="Equipe" htmlFor="et-team" error={errors.teamId?.message}>
+              <select id="et-team" {...register("teamId")} className={cn(controlClass, "appearance-none h-10")}>
                 <option value="">Pessoal (Apenas minha agenda)</option>
                 {userTeams.map(team => (
                   <option key={team.id} value={team.id}>{team.name}</option>
@@ -375,45 +360,45 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
                 <h3 className="text-sm font-medium text-foreground">Perguntas adicionais</h3>
                 <p className="text-xs text-muted-foreground">Faça perguntas aos pacientes antes de agendar.</p>
               </div>
-              <button
+              <Button
                 type="button"
+                variant="secondary"
+                size="sm"
+                className="rounded-lg"
                 onClick={() => appendQuestion({ label: "", type: "TEXT", required: false, order: questionFields.length })}
-                className="rounded-lg bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/70 transition-colors"
               >
-                + Adicionar
-              </button>
+                <Plus className="h-3.5 w-3.5" /> Adicionar
+              </Button>
             </div>
 
             {questionFields.length > 0 && (
               <div className="space-y-3">
                 {questionFields.map((field, index) => (
                   <div key={field.id} className="rounded-xl border border-border/60 bg-surface p-4 relative group">
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="icon"
                       aria-label="Remover pergunta"
                       onClick={() => removeQuestion(index)}
-                      className="absolute top-3 right-3 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-2 right-2 h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
 
                     <div className="grid gap-3">
-                      <Field label="Pergunta" error={errors.questions?.[index]?.label?.message}>
-                        <input
+                      <Field label="Pergunta" htmlFor={`et-q-${index}`} error={errors.questions?.[index]?.label?.message}>
+                        <Input
+                          id={`et-q-${index}`}
                           {...register(`questions.${index}.label` as const)}
                           placeholder="Ex: Qual o motivo da consulta?"
-                          className={inputClass}
+                          className="rounded-xl h-10"
                         />
                       </Field>
 
                       <div className="grid grid-cols-2 gap-3">
-                        <Field label="Tipo de resposta">
-                          <select
-                            {...register(`questions.${index}.type` as const)}
-                            className={cn(inputClass, "appearance-none")}
-                          >
+                        <Field label="Tipo de resposta" htmlFor={`et-q-type-${index}`}>
+                          <select id={`et-q-type-${index}`} {...register(`questions.${index}.type` as const)} className={cn(controlClass, "appearance-none h-10")}>
                             <option value="TEXT">Texto Curto</option>
                             <option value="TEXTAREA">Texto Longo</option>
                             <option value="PHONE">Telefone</option>
@@ -425,7 +410,7 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
                             <input
                               type="checkbox"
                               {...register(`questions.${index}.required` as const)}
-                              className="h-4 w-4 rounded border-border bg-input-background text-brand-primary focus:ring-brand-primary focus:ring-offset-card"
+                              className="h-4 w-4 rounded border-input bg-input-background text-brand-primary focus:ring-brand-primary focus:ring-offset-card"
                             />
                             <span className="text-sm font-medium text-foreground">Obrigatória</span>
                           </label>
@@ -440,47 +425,37 @@ export function EventTypeForm({ open, onClose, defaultValues, userTeams = [] }: 
 
           {/* Footer */}
           <div className="flex gap-3 pt-2 pb-1">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 rounded-xl border border-border py-2.5 text-sm font-medium text-foreground transition-all hover:bg-muted"
-            >
+            <Button type="button" variant="outline" className="flex-1 rounded-xl" onClick={onClose}>
               Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className={cn(
-                "flex-1 rounded-xl bg-brand-primary py-2.5 text-sm font-medium text-white",
-                "transition-all hover:bg-brand-primary/90 active:scale-[0.99]",
-                "disabled:opacity-50 disabled:pointer-events-none"
-              )}
-            >
+            </Button>
+            <Button type="submit" disabled={isSubmitting} className="flex-1 rounded-xl">
               {isSubmitting
                 ? "Salvando..."
                 : isEditing
                 ? "Salvar alterações"
                 : "Criar consulta"}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
 function Field({
   label,
+  htmlFor,
   error,
   children,
 }: {
   label: string
+  htmlFor?: string
   error?: string
   children: React.ReactNode
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-sm font-medium text-foreground">{label}</label>
+      <Label htmlFor={htmlFor}>{label}</Label>
       {children}
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
@@ -524,6 +499,3 @@ function Toggle({
     </div>
   )
 }
-
-const inputClass =
-  "w-full rounded-xl border border-border bg-input-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none transition-all focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"

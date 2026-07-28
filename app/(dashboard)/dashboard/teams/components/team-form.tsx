@@ -8,6 +8,15 @@ import { Sparkles } from "lucide-react"
 import { teamSchema, type TeamInput } from "@/lib/validators/team"
 import { upsertTeamAction } from "@/lib/actions/team"
 import { cn } from "@/lib/utils"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
 
 interface TeamFormProps {
   open: boolean
@@ -25,6 +34,10 @@ function slugify(value: string): string {
     .replace(/-+/g, "-")
     .trim()
 }
+
+/** Estilo compartilhado para controles nativos (select/textarea) alinhado ao primitivo Input. */
+const controlClass =
+  "w-full rounded-md border border-input bg-input-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
 
 export function TeamForm({ open, onClose, defaultValues }: TeamFormProps) {
   const router = useRouter()
@@ -86,29 +99,14 @@ export function TeamForm({ open, onClose, defaultValues }: TeamFormProps) {
     }
   }
 
-  if (!open) return null
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={onClose} />
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{isEditing ? "Editar clínica" : "Nova clínica"}</DialogTitle>
+        </DialogHeader>
 
-      <div className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl border border-border/60 bg-card shadow-2xl">
-        <div className="flex items-center justify-between border-b border-border/60 px-6 py-4">
-          <h2 className="text-base font-semibold text-foreground">
-            {isEditing ? "Editar clínica" : "Nova clínica"}
-          </h2>
-          <button
-            onClick={onClose}
-            aria-label="Fechar"
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 px-6 py-5">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           {serverError && (
             <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3">
               <p className="text-sm text-destructive">{serverError}</p>
@@ -128,38 +126,34 @@ export function TeamForm({ open, onClose, defaultValues }: TeamFormProps) {
           )}
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground">Nome da clínica</label>
-            <input {...register("name")} placeholder="Ex: Clínica Bem Estar" className={inputClass} />
+            <Label htmlFor="team-name">Nome da clínica</Label>
+            <Input id="team-name" {...register("name")} placeholder="Ex: Clínica Bem Estar" aria-invalid={!!errors.name} className="rounded-xl h-10" />
             {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground">Slug (URL)</label>
-            <input {...register("slug")} placeholder="clinica-bem-estar" className={inputClass} />
+            <Label htmlFor="team-slug">Slug (URL)</Label>
+            <Input id="team-slug" {...register("slug")} placeholder="clinica-bem-estar" aria-invalid={!!errors.slug} className="rounded-xl h-10" />
             <p className="text-xs text-muted-foreground">Aparece na URL: marca-ai-app.vercel.app/equipe/slug</p>
             {errors.slug && <p className="text-xs text-destructive">{errors.slug.message}</p>}
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground">Descrição (opcional)</label>
+            <Label htmlFor="team-description">Descrição (opcional)</Label>
             <textarea
+              id="team-description"
               {...register("description")}
               placeholder="Sobre a clínica..."
               rows={3}
-              className={cn(inputClass, "resize-none")}
+              className={cn(controlClass, "resize-none")}
             />
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2">
             {/* Theme */}
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground">
-                Tema Público
-              </label>
-              <select
-                {...register("theme")}
-                className={cn(inputClass, "appearance-none")}
-              >
+              <Label htmlFor="team-theme">Tema Público</Label>
+              <select id="team-theme" {...register("theme")} className={cn(controlClass, "h-10 appearance-none")}>
                 <option value="LIGHT">Claro (Light Mode)</option>
                 <option value="DARK">Escuro (Dark Mode)</option>
                 <option value="SYSTEM">Sistema (Automático)</option>
@@ -171,21 +165,21 @@ export function TeamForm({ open, onClose, defaultValues }: TeamFormProps) {
 
             {/* Brand Color */}
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground">
-                Cor da Marca (Hex)
-              </label>
+              <Label htmlFor="team-brand-color">Cor da Marca (Hex)</Label>
               <div className="flex gap-3">
                 <input
+                  id="team-brand-color"
                   type="color"
                   aria-label="Seletor de cor da marca"
                   {...register("brandColor")}
-                  className="h-10 w-14 rounded-xl cursor-pointer border border-border p-0"
+                  className="h-10 w-14 shrink-0 rounded-xl cursor-pointer border border-input p-0"
                 />
-                <input
+                <Input
                   type="text"
                   {...register("brandColor")}
                   placeholder="#0f9e8e"
-                  className={cn(inputClass, errors.brandColor && "border-destructive/60 focus:border-destructive")}
+                  aria-invalid={!!errors.brandColor}
+                  className="rounded-xl h-10"
                 />
               </div>
               {errors.brandColor && (
@@ -195,28 +189,15 @@ export function TeamForm({ open, onClose, defaultValues }: TeamFormProps) {
           </div>
 
           <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 rounded-xl border border-border py-2.5 text-sm font-medium text-foreground transition-all hover:bg-muted"
-            >
+            <Button type="button" variant="outline" className="flex-1 rounded-xl" onClick={onClose}>
               Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className={cn(
-                "flex-1 rounded-xl bg-brand-primary py-2.5 text-sm font-medium text-white transition-all hover:bg-brand-primary/90 active:scale-[0.99]",
-                "disabled:opacity-50 disabled:pointer-events-none"
-              )}
-            >
+            </Button>
+            <Button type="submit" disabled={isSubmitting} className="flex-1 rounded-xl">
               {isSubmitting ? "Salvando..." : isEditing ? "Salvar alterações" : "Criar clínica"}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
-
-const inputClass = "w-full rounded-xl border border-border bg-input-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary transition-all"

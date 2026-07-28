@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { createCheckoutSessionAction } from "@/lib/actions/billing"
 import { CreditCard, ExternalLink } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 
 export function CheckoutButton({ teamId, isSubscribed }: { teamId: string, isSubscribed: boolean }) {
   const [loading, setLoading] = useState(false)
@@ -13,7 +13,7 @@ export function CheckoutButton({ teamId, isSubscribed }: { teamId: string, isSub
     const result = await createCheckoutSessionAction(teamId)
 
     if ("url" in result) {
-      window.location.href = result.url
+      window.location.assign(result.url)
     } else {
       alert(result.error ?? "Erro ao gerar pagamento")
       setLoading(false)
@@ -21,15 +21,12 @@ export function CheckoutButton({ teamId, isSubscribed }: { teamId: string, isSub
   }
 
   return (
-    <button
+    <Button
+      type="button"
       onClick={handleClick}
       disabled={loading}
-      className={cn(
-        "flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium transition-all active:scale-[0.98]",
-        isSubscribed
-          ? "bg-secondary text-secondary-foreground hover:bg-secondary/70"
-          : "bg-brand-primary text-white hover:bg-brand-primary/90"
-      )}
+      variant={isSubscribed ? "secondary" : "default"}
+      className="w-full rounded-xl py-3 h-auto"
     >
       {loading ? (
         <span className="animate-pulse">Aguarde...</span>
@@ -44,6 +41,6 @@ export function CheckoutButton({ teamId, isSubscribed }: { teamId: string, isSub
           Assinar Agora
         </>
       )}
-    </button>
+    </Button>
   )
 }
