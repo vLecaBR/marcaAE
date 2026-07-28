@@ -105,10 +105,10 @@ describe("Validators", () => {
   describe("eventTypeSchema", () => {
     it("deve validar um tipo de evento", () => {
       const result = eventTypeSchema.safeParse({
-        title: "Meet",
-        slug: "meet-1",
+        title: "Consulta de retorno",
+        slug: "consulta-retorno",
         duration: 30,
-        color: "VIOLET",
+        color: "TEAL",
         locationType: "GOOGLE_MEET"
       })
       expect(result.success).toBe(true)
