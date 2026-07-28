@@ -1,56 +1,50 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# ══════════════════════════════════════════════════════════════
+# MarcaAí — .gitignore da RAIZ do monorepo
+# ------------------------------------------------------------------------------
+# Cada app tem seu próprio .gitignore específico:
+#   • frontend/.gitignore  → Next.js (node_modules, .next, .env, tsbuildinfo…)
+#   • backend/.gitignore   → .NET (bin, obj, .vs, user secrets…)
+# As regras abaixo são um REFORÇO de nível-repo (padrões `**/`) + itens da raiz.
+# NOTA: docs/ NÃO é mais ignorado — specs e ADRs são versionados.
+# ══════════════════════════════════════════════════════════════
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
+# ── Sistema operacional / editores ──
 .DS_Store
-*.pem
+Thumbs.db
+*.swp
+.idea/
+.vscode/
 
-# debug
+# ── Dependências / build (qualquer subpasta) ──
+**/node_modules/
+**/.pnp
+**/.next/
+**/out/
+**/build/
+**/dist/
+**/coverage/
+**/playwright-report/
+**/test-results/
+*.tsbuildinfo
+
+# ── Backend .NET (reforço; ver backend/.gitignore) ──
+**/bin/
+**/obj/
+**/.vs/
+*.user
+**/appsettings.*.local.json
+
+# ── Segredos / arquivos locais (o template .env.example continua versionado) ──
+**/.env
+**/.env.local
+**/.env.*.local
+
+# ── Arquivos temporários de teste manual (jamais commitar) ──
+cookies.txt
+**/cookies.txt
+
+# ── Logs ──
+*.log
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
 .pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
-.env*
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-/app/generated/prisma
-spec
-
-# testing reports
-/coverage
-/playwright-report
-/test-results
-/.last-run.json
-report.json
-
-# Manter o template de variáveis versionado (a regra .env* acima o ignoraria)
-!.env.example
-
-/docs
