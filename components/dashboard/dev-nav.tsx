@@ -37,7 +37,7 @@ export function DevNav() {
               href={s.id}
               onClick={() => setOpen(false)}
               className={`block w-full text-left px-2.5 py-1.5 rounded-lg text-sm transition ${
-                pathname === s.id ? "bg-violet-50 text-primary dark:bg-violet-500/10 dark:text-violet-400" : "hover:bg-muted"
+                pathname === s.id ? "bg-brand-primary/10 text-brand-primary" : "hover:bg-muted"
               }`}
             >
               {s.label}

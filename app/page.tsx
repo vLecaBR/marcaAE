@@ -8,14 +8,14 @@ import { Logo } from "@/components/ui/logo"
 import { PricingSection } from "@/components/marketing/pricing-section"
 import {
   ArrowRight,
-  Calendar,
+  CalendarCheck,
   Clock,
   Users,
-  Zap,
-  Shield,
-  Globe,
+  Stethoscope,
+  ShieldCheck,
+  Wallet,
   CheckCircle2,
-  Sparkles,
+  HeartPulse,
 } from "lucide-react"
 
 export default async function RootPage() {
@@ -27,9 +27,9 @@ export default async function RootPage() {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-violet-50/40 via-white to-white dark:from-violet-950/20 dark:via-background dark:to-background">
+    <div className="min-h-screen bg-linear-to-b from-secondary/50 via-surface to-background">
       {/* Nav */}
-      <header className="sticky top-0 z-30 backdrop-blur-md bg-white/70 dark:bg-background/70 border-b border-border/60">
+      <header className="sticky top-0 z-30 backdrop-blur-md bg-background/70 border-b border-border/60">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/">
             <Logo />
@@ -37,7 +37,7 @@ export default async function RootPage() {
           <nav className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
             <a className="hover:text-foreground transition" href="#features">Recursos</a>
             <a className="hover:text-foreground transition" href="#pricing">Planos</a>
-            <a className="hover:text-foreground transition" href="#faq">Dúvidas</a>
+            <a className="hover:text-foreground transition" href="#trust">Segurança</a>
           </nav>
           <div className="flex items-center gap-2">
             <Button asChild variant="ghost">
@@ -55,48 +55,52 @@ export default async function RootPage() {
       {/* Hero */}
       <main>
         <section className="max-w-6xl mx-auto px-6 pt-20 pb-16 text-center">
-          <Badge variant="secondary" className="mb-6 rounded-full px-3 py-1 bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400 hover:bg-violet-100 border-0 font-normal">
-            <Sparkles size={12} className="mr-1.5" />
-            Novo · Assistente de agenda com IA
+          <Badge
+            variant="secondary"
+            className="mb-6 rounded-full px-3 py-1 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/10 border-0 font-medium"
+          >
+            <HeartPulse size={12} className="mr-1.5" />
+            Feito para clínicas e consultórios
           </Badge>
           <h1 className="mx-auto max-w-3xl" style={{ fontSize: 56, lineHeight: 1.05, fontWeight: 700, letterSpacing: -1.5 }}>
-            Agendamentos que parecem{" "}
-            <span className="bg-linear-to-r from-violet-600 to-fuchsia-500 bg-clip-text text-transparent">
-              mágica
+            A agenda da sua clínica,{" "}
+            <span className="bg-linear-to-r from-brand-primary to-brand-secondary bg-clip-text text-transparent">
+              organizada e segura
             </span>
           </h1>
           <p className="mx-auto max-w-xl mt-6 text-muted-foreground" style={{ fontSize: 18, lineHeight: 1.6 }}>
-            Compartilhe seu link. Deixe que escolham um horário. Sem trocas infinitas de email, ligações perdidas ou conflitos de agenda.
+            Seus pacientes agendam e pagam pelo seu link. Você recebe com repasse transparente, sem
+            trocas de mensagens, ligações perdidas ou horários em conflito.
           </p>
           <div className="mt-9 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Button asChild size="lg" className="h-12 px-7 rounded-xl w-full sm:w-auto">
-              <Link href="/login">Começar grátis — é por nossa conta</Link>
+              <Link href="/login">Começar grátis — 30 dias por nossa conta</Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="h-12 px-7 rounded-xl w-full sm:w-auto">
               <Link href="#features">Conheça os recursos</Link>
             </Button>
           </div>
           <div className="mt-5 text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
-            <span className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-emerald-500" /> Sem cartão de crédito</span>
-            <span className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-emerald-500" /> Plano grátis para sempre</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-care" /> Sem cartão de crédito</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-care" /> Conforme a LGPD</span>
           </div>
 
           {/* Mock app preview */}
           <div className="mt-16 relative hidden md:block">
-            <div className="absolute -inset-4 bg-linear-to-r from-violet-200/40 via-fuchsia-200/40 to-violet-200/40 dark:from-violet-900/20 dark:via-fuchsia-900/20 dark:to-violet-900/20 blur-3xl rounded-[40px]" />
+            <div className="absolute -inset-4 bg-linear-to-r from-brand-primary/20 via-brand-secondary/15 to-brand-primary/20 blur-3xl rounded-[40px]" />
             <Card className="relative mx-auto max-w-4xl overflow-hidden border-border/60 shadow-2xl rounded-2xl p-0">
               <div className="grid grid-cols-1 md:grid-cols-3 bg-card">
                 <div className="p-6 border-r border-border/60 text-left">
-                  <div className="w-12 h-12 rounded-full bg-violet-100 dark:bg-violet-900/30 mb-4 flex items-center justify-center text-violet-700 font-semibold">
+                  <div className="w-12 h-12 rounded-full bg-brand-primary/10 mb-4 flex items-center justify-center text-brand-primary font-semibold">
                     AC
                   </div>
-                  <div className="text-xs text-muted-foreground">Ana Costa</div>
-                  <h3 className="mt-1 font-semibold">Conversa de estratégia</h3>
+                  <div className="text-xs text-muted-foreground">Dra. Ana Costa</div>
+                  <h3 className="mt-1 font-semibold">Consulta de retorno</h3>
                   <div className="mt-4 text-sm text-muted-foreground flex items-center gap-2">
                     <Clock size={14} /> 30 minutos
                   </div>
                   <div className="mt-2 text-sm text-muted-foreground flex items-center gap-2">
-                    <Globe size={14} /> Google Meet
+                    <Stethoscope size={14} /> Presencial · Consultório
                   </div>
                 </div>
                 <div className="p-6 border-r border-border/60 text-left">
@@ -104,7 +108,7 @@ export default async function RootPage() {
                   <div className="grid grid-cols-7 gap-1.5 text-xs">
                     {["D","S","T","Q","Q","S","S"].map((d,i) => <div key={i} className="text-center text-muted-foreground py-1 font-medium">{d}</div>)}
                     {Array.from({length: 31}).map((_,i) => (
-                      <div key={i} className={`aspect-square rounded-md flex items-center justify-center transition-colors ${i===14?"bg-primary text-primary-foreground shadow-sm":[2,8,14,15,21,22,28].includes(i)?"hover:bg-violet-50 dark:hover:bg-violet-900/30 cursor-pointer text-foreground":"text-muted-foreground/30"}`}>
+                      <div key={i} className={`aspect-square rounded-md flex items-center justify-center transition-colors ${i===14?"bg-primary text-primary-foreground shadow-sm":[2,8,14,15,21,22,28].includes(i)?"hover:bg-secondary cursor-pointer text-foreground":"text-muted-foreground/30"}`}>
                         {i+1}
                       </div>
                     ))}
@@ -114,7 +118,7 @@ export default async function RootPage() {
                   <div className="text-sm mb-3" style={{ fontWeight: 600 }}>Qui, 15 de mai</div>
                   <div className="flex flex-col gap-2">
                     {["09:00","09:30","10:00","14:00"].map((t,i) => (
-                      <div key={t} className={`px-3 py-2.5 rounded-lg border text-sm text-center transition-colors ${i===2?"border-primary bg-violet-50 dark:bg-violet-900/10 text-primary":"border-border hover:border-primary/50 text-foreground"}`}>
+                      <div key={t} className={`px-3 py-2.5 rounded-lg border text-sm text-center transition-colors ${i===2?"border-primary bg-secondary text-primary":"border-border hover:border-primary/50 text-foreground"}`}>
                         {t}
                       </div>
                     ))}
@@ -130,20 +134,20 @@ export default async function RootPage() {
           <div className="text-center max-w-2xl mx-auto mb-14">
             <Badge variant="outline" className="mb-4 rounded-full font-normal">Recursos</Badge>
             <h2 style={{ fontSize: 36, fontWeight: 700, letterSpacing: -0.8 }}>
-              Tudo que você precisa. Nada que você não precisa.
+              Tudo para a rotina da clínica. Nada de excessos.
             </h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {[
-              { icon: Calendar, title: "Sincronização inteligente", desc: "Conecta com Google, Outlook e iCloud. Nunca mais tenha conflitos de horário." },
-              { icon: Users, title: "Agenda em equipe", desc: "Round-robin, coletivos e eventos gerenciados para todo o seu time." },
-              { icon: Zap, title: "Fluxos e lembretes", desc: "Automatize confirmações, follow-ups e lembretes por email ou WhatsApp." },
-              { icon: Globe, title: "Embed em qualquer lugar", desc: "Inclua no seu site, em emails ou compartilhe um link público elegante." },
-              { icon: Shield, title: "Privacidade em primeiro lugar", desc: "Em conformidade com a LGPD. SOC 2. Nunca vendemos seus dados." },
-              { icon: Clock, title: "Disponibilidade customizada", desc: "Regras por evento. Intervalos, antecedência mínima, datas e muito mais." },
+              { icon: CalendarCheck, title: "Agenda sem conflitos", desc: "Regras de disponibilidade por profissional, intervalos e antecedência mínima. Cada horário aberto só uma vez." },
+              { icon: Users, title: "Equipe da clínica", desc: "Vários profissionais, papéis e permissões. Cada um com sua agenda, tudo sob o mesmo consultório." },
+              { icon: Wallet, title: "Recebimento transparente", desc: "Pacientes pagam via PIX ou cartão no agendamento. Repasse e taxas sempre à vista, sem surpresa." },
+              { icon: Stethoscope, title: "Tipos de consulta", desc: "Retorno, primeira consulta, avaliação — cada um com sua duração, valor e modalidade." },
+              { icon: ShieldCheck, title: "Segurança em primeiro lugar", desc: "Em conformidade com a LGPD. Dados dos pacientes protegidos e nunca vendidos." },
+              { icon: Clock, title: "Lembretes automáticos", desc: "Confirmações e lembretes reduzem faltas e mantêm a agenda cheia sem trabalho manual." },
             ].map((f) => (
               <Card key={f.title} className="p-6 rounded-2xl border-border/60 hover:shadow-md hover:-translate-y-0.5 transition group">
-                <div className="w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-violet-700 dark:text-violet-400 mb-4 group-hover:scale-110 transition-transform">
+                <div className="w-10 h-10 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary mb-4 group-hover:scale-110 transition-transform">
                   <f.icon size={18} />
                 </div>
                 <h3 className="mb-1.5 font-semibold">{f.title}</h3>
@@ -156,15 +160,34 @@ export default async function RootPage() {
         {/* Pricing (§8.1 — consome PLAN_CONFIG) */}
         <PricingSection />
 
+        {/* Trust / Healthtech (§8.5.2) */}
+        <section id="trust" className="max-w-6xl mx-auto px-6 pb-24">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            {[
+              { icon: ShieldCheck, title: "Conforme a LGPD", desc: "Tratamos os dados de pacientes com base legal, minimização e segurança de ponta a ponta." },
+              { icon: Wallet, title: "Split transparente", desc: "Você vê o valor bruto, a taxa e o líquido de cada consulta. Sem letra miúda." },
+              { icon: HeartPulse, title: "Feito para clínicas", desc: "Da agenda ao repasse, pensado para a rotina de consultórios e equipes de saúde." },
+            ].map((t) => (
+              <div key={t.title} className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
+                <div className="w-10 h-10 rounded-xl bg-brand-secondary/10 flex items-center justify-center text-brand-secondary mb-4">
+                  <t.icon size={18} />
+                </div>
+                <h3 className="mb-1.5 font-semibold">{t.title}</h3>
+                <p className="text-sm text-muted-foreground" style={{ lineHeight: 1.55 }}>{t.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {/* CTA */}
         <section className="max-w-5xl mx-auto px-6 pb-24">
-          <Card className="rounded-3xl bg-linear-to-br from-violet-600 to-fuchsia-600 border-0 p-8 sm:p-12 text-center text-white overflow-hidden relative shadow-lg">
+          <Card className="rounded-3xl bg-linear-to-br from-brand-primary to-brand-secondary border-0 p-8 sm:p-12 text-center text-white overflow-hidden relative shadow-lg">
             <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_left,white,transparent_50%)] pointer-events-none" />
             <div className="relative">
-              <h2 className="text-white" style={{ fontSize: 36, fontWeight: 700, lineHeight: 1.1 }}>Seu tempo, suas regras.</h2>
-              <p className="mt-3 text-white/85 max-w-md mx-auto">Junte-se a dezenas de profissionais que agendam de forma inteligente com a Marca AI.</p>
-              <Button asChild size="lg" variant="secondary" className="mt-7 h-12 px-7 rounded-xl text-primary font-medium hover:bg-white/90">
-                <Link href="/login">Criar minha conta grátis</Link>
+              <h2 className="text-white" style={{ fontSize: 36, fontWeight: 700, lineHeight: 1.1 }}>Sua clínica, no controle da agenda.</h2>
+              <p className="mt-3 text-white/85 max-w-md mx-auto">Junte-se a profissionais de saúde que agendam, recebem e crescem com o MarcaAí.</p>
+              <Button asChild size="lg" variant="secondary" className="mt-7 h-12 px-7 rounded-xl text-brand-primary font-medium hover:bg-white/90">
+                <Link href="/login">Criar conta grátis — 30 dias</Link>
               </Button>
             </div>
           </Card>
@@ -174,7 +197,7 @@ export default async function RootPage() {
       <footer className="border-t border-border/60 py-8 bg-card">
         <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
           <Logo size={22} />
-          <span>© {new Date().getFullYear()} Marca AI. Todos os direitos reservados.</span>
+          <span>© {new Date().getFullYear()} MarcaAí. Todos os direitos reservados.</span>
         </div>
       </footer>
     </div>
