@@ -18,7 +18,8 @@ namespace MarcaAi.Api.Controllers;
 [Route("api/v1/auth/google")]
 public sealed class GoogleAuthController(
     IUserProvisioning provisioning,
-    AuthSessionWriter session) : ControllerBase
+    AuthSessionWriter session,
+    IConfiguration config) : ControllerBase
 {
     /// <summary>Inicia o fluxo — redireciona para o consentimento do Google.</summary>
     [AllowAnonymous]
@@ -29,10 +30,10 @@ public sealed class GoogleAuthController(
         return Challenge(props, "Google");
     }
 
-    /// <summary>Finaliza o login: lê o resultado do Google, provisiona e emite a sessão.</summary>
+    /// <summary>Finaliza o login: lê o resultado do Google, provisiona, emite a sessão e redireciona ao frontend.</summary>
     [AllowAnonymous]
     [HttpGet("complete")]
-    public async Task<ActionResult<MeDto>> Complete(CancellationToken ct)
+    public async Task<IActionResult> Complete(CancellationToken ct)
     {
         var result = await HttpContext.AuthenticateAsync("ext");
         if (!result.Succeeded || result.Principal is null || result.Properties is null)
@@ -60,14 +61,9 @@ public sealed class GoogleAuthController(
         session.Issue(HttpContext, user);
         await HttpContext.SignOutAsync("ext"); // limpa o cookie temporário do handshake
 
-        // TODO(frontend): em produção, redirecionar para {frontend}/dashboard em vez de retornar JSON.
-        return Ok(new MeDto
-        {
-            Id = user.Id,
-            Email = user.Email,
-            Username = user.Username,
-            Onboarded = user.Onboarded,
-            TimeZone = user.TimeZone,
-        });
+        // Redireciona ao frontend: quem já concluiu o onboarding vai pro dashboard; o resto pro onboarding.
+        var frontend = (config["Cors:FrontendOrigin"] ?? "http://localhost:3000").TrimEnd('/');
+        var destination = user.Onboarded ? "/dashboard" : "/onboarding";
+        return Redirect($"{frontend}{destination}");
     }
 }
