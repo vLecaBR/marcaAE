@@ -1,26 +1,43 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
 using MarcaAi.Api.Auth;
 using MarcaAi.Application.Common.Interfaces;
 using MarcaAi.Application.Features.Auth;
+using MarcaAi.Domain.Entities;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace MarcaAi.Api.Controllers;
 
 /// <summary>
 /// Login via Google (OAuth code flow). O handler "Google" (Program.cs) processa o CallbackPath
-/// e assina no cookie temporário "ext"; aqui finalizamos: provisionamos o usuário, guardamos os
-/// tokens do Calendar na Account e emitimos o cookie de sessão do MarcaAí.
+/// e assina no cookie temporário "ext"; aqui finalizamos: provisionamos o usuário e guardamos os
+/// tokens do Calendar na Account.
+///
+/// Cookie cross-domain: a API e o frontend vivem em domínios diferentes, então a sessão NÃO pode
+/// ser emitida aqui (o cookie ficaria preso no domínio da API). Em vez disso o /complete gera um
+/// código de troca de uso único e redireciona para {FRONT}/auth/callback?code=..., e o frontend
+/// troca o código pela sessão no /exchange e re-emite o cookie no domínio dele — mesmo princípio
+/// do magic link, que já funciona.
+///
 /// Só é registrado se houver Google:ClientId/ClientSecret configurados.
 /// </summary>
 [ApiController]
 [Route("api/v1/auth/google")]
 public sealed class GoogleAuthController(
+    IApplicationDbContext db,
     IUserProvisioning provisioning,
     AuthSessionWriter session,
     IConfiguration config) : ControllerBase
 {
+    /// <summary>Janela curta para trocar o código pela sessão (uso único).</summary>
+    private static readonly TimeSpan HandoffTtl = TimeSpan.FromMinutes(2);
+
+    /// <summary>Prefixo no Identifier do token para distinguir o handoff do Google de um magic link.</summary>
+    private const string HandoffIdentifierPrefix = "google-handoff:";
+
     /// <summary>Inicia o fluxo — redireciona para o consentimento do Google.</summary>
     [AllowAnonymous]
     [HttpGet("start")]
@@ -30,7 +47,10 @@ public sealed class GoogleAuthController(
         return Challenge(props, "Google");
     }
 
-    /// <summary>Finaliza o login: lê o resultado do Google, provisiona, emite a sessão e redireciona ao frontend.</summary>
+    /// <summary>
+    /// Finaliza o handshake do Google: provisiona o usuário, gera um código de troca de uso único
+    /// e redireciona ao frontend. NÃO emite a sessão aqui (ver nota da classe sobre cross-domain).
+    /// </summary>
     [AllowAnonymous]
     [HttpGet("complete")]
     public async Task<IActionResult> Complete(CancellationToken ct)
@@ -58,12 +78,62 @@ public sealed class GoogleAuthController(
             ExpiresAtUnix: expiresUnix,
             Scope: result.Properties.GetTokenValue("scope")), ct);
 
-        session.Issue(HttpContext, user);
         await HttpContext.SignOutAsync("ext"); // limpa o cookie temporário do handshake
 
-        // Redireciona ao frontend: quem já concluiu o onboarding vai pro dashboard; o resto pro onboarding.
+        // Código de troca de uso único (reaproveita a tabela VerificationToken, como o magic link).
+        var code = Base64UrlToken(32);
+        db.VerificationTokens.Add(new VerificationToken
+        {
+            Identifier = HandoffIdentifierPrefix + user.Email,
+            Token = code,
+            Expires = DateTime.UtcNow.Add(HandoffTtl),
+        });
+        await db.SaveChangesAsync(ct);
+
+        // Contrato: docs/backend-backlog.md → "Contrato de redirect do front".
         var frontend = (config["Cors:FrontendOrigin"] ?? "http://localhost:3000").TrimEnd('/');
-        var destination = user.Onboarded ? "/dashboard" : "/onboarding";
-        return Redirect($"{frontend}{destination}");
+        return Redirect($"{frontend}/auth/callback?code={Uri.EscapeDataString(code)}");
+    }
+
+    /// <summary>
+    /// Troca o código de handoff pela sessão (uso único). Chamado server-side pelo /auth/callback do
+    /// frontend, que re-emite os cookies de sessão no próprio domínio.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("exchange")]
+    public async Task<ActionResult<MeDto>> Exchange([FromQuery] string code, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+            return Problem(statusCode: StatusCodes.Status400BadRequest, detail: "Código ausente.");
+
+        var vt = await db.VerificationTokens.FirstOrDefaultAsync(v => v.Token == code, ct);
+        if (vt is null
+            || !vt.Identifier.StartsWith(HandoffIdentifierPrefix, StringComparison.Ordinal)
+            || vt.Expires < DateTime.UtcNow)
+            return Problem(statusCode: StatusCodes.Status400BadRequest, detail: "Código inválido ou expirado.");
+
+        db.VerificationTokens.Remove(vt); // uso único
+        await db.SaveChangesAsync(ct);
+
+        var email = vt.Identifier[HandoffIdentifierPrefix.Length..];
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Email == email, ct);
+        if (user is null)
+            return Problem(statusCode: StatusCodes.Status401Unauthorized, detail: "Usuário não encontrado.");
+
+        session.Issue(HttpContext, user); // agora sim: cookies vão na resposta que o front re-emite
+        return Ok(new MeDto
+        {
+            Id = user.Id,
+            Email = user.Email,
+            Username = user.Username,
+            Onboarded = user.Onboarded,
+            TimeZone = user.TimeZone,
+        });
+    }
+
+    private static string Base64UrlToken(int bytes)
+    {
+        var buf = RandomNumberGenerator.GetBytes(bytes);
+        return Convert.ToBase64String(buf).TrimEnd('=').Replace('+', '-').Replace('/', '_');
     }
 }

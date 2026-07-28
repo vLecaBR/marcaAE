@@ -12,6 +12,7 @@ export const endpoints = {
     logout: "/auth/logout",
     googleStart: "/auth/google/start",
     googleComplete: "/auth/google/complete",
+    googleExchange: "/auth/google/exchange",
   },
   me: {
     root: "/me",
