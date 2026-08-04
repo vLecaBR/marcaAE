@@ -8,6 +8,7 @@ import { FadeIn } from "@/components/motion/primitives"
 import { TrialBanner } from "@/components/billing/trial-banner"
 import { requireOnboarded } from "@/lib/auth/guards"
 import { getPrimaryTeamBilling } from "@/lib/api/billing"
+import { isClinicPlan } from "@/lib/plans/plan-config"
 import type { MeDto } from "@/lib/api/types"
 import {
   Home,
@@ -82,6 +83,9 @@ export default async function DashboardLayout({
   const user = await requireOnboarded()
   // Estado de trial da clínica principal (com fallback mock gracioso §2.4) para o banner persistente.
   const { billing } = await getPrimaryTeamBilling()
+  // Q2 (gating de trilha): o bloco "Clínica" só aparece para planos da trilha clínica
+  // (CLINICA/CLINICA_PRO). Solo/Solo Pro não têm contato com o escopo de clínica.
+  const showClinic = isClinicPlan(billing.planCode)
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/30 md:flex-row dark:bg-background">
@@ -107,7 +111,9 @@ export default async function DashboardLayout({
             <NavLink href="/dashboard/event-types" icon={<Layers />}>Tipos de consulta</NavLink>
             <NavLink href="/dashboard/recebimentos" icon={<Wallet />}>Recebimentos</NavLink>
             <NavLink href="/dashboard/financeiro" icon={<BarChart3 />}>Financeiro</NavLink>
-            <NavLink href="/dashboard/team" icon={<Users />}>Clínica</NavLink>
+            {showClinic && (
+              <NavLink href="/dashboard/team" icon={<Users />}>Clínica</NavLink>
+            )}
           </div>
 
           <div
@@ -151,7 +157,9 @@ export default async function DashboardLayout({
         <NavLink href="/dashboard/bookings" icon={<Calendar />} variant="mobile">Agenda</NavLink>
         <NavLink href="/dashboard/event-types" icon={<Layers />} variant="mobile">Consultas</NavLink>
         <NavLink href="/dashboard/recebimentos" icon={<Wallet />} variant="mobile">Recebe</NavLink>
-        <NavLink href="/dashboard/team" icon={<Users />} variant="mobile">Clínica</NavLink>
+        {showClinic && (
+          <NavLink href="/dashboard/team" icon={<Users />} variant="mobile">Clínica</NavLink>
+        )}
         <NavLink href="/settings/profile" icon={<SettingsIcon />} variant="mobile">Ajustes</NavLink>
       </nav>
 

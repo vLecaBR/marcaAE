@@ -15,6 +15,8 @@ import { getMe } from "@/lib/api/session"
 import { serverApiFetch } from "@/lib/api/http-client"
 import { endpoints } from "@/lib/api/endpoints"
 import { isApiError } from "@/lib/api/problem-details"
+import { getPrimaryTeamBilling } from "@/lib/api/billing"
+import { isClinicPlan } from "@/lib/plans/plan-config"
 import type { MeDto } from "@/lib/api/types"
 
 /** Exige sessão válida. Sem sessão → `/login`. */
@@ -32,6 +34,22 @@ export async function requireOnboarded(): Promise<MeDto> {
   const user = await requireUser()
   if (!user.onboarded) redirect("/onboarding")
   return user
+}
+
+/**
+ * Exige que o usuário esteja numa **trilha de clínica** (`CLINICA`/`CLINICA_PRO`) — gating do Q2.
+ *
+ * Protege o escopo `dashboard/team/**` contra acesso por URL direta de quem está num plano
+ * individual (Solo/Solo Pro). Deriva o plano do billing da clínica principal (com fallback mock
+ * gracioso §2.4) e, se não for trilha clínica, redireciona amigavelmente para `/dashboard`.
+ *
+ * Defesa em profundidade (UX): o backend continua sendo a fonte da verdade e revalida cada request
+ * sensível (403 → tela amigável). Aqui evitamos apenas renderizar a área de clínica indevidamente.
+ */
+export async function requireClinicPlan(): Promise<void> {
+  await requireOnboarded()
+  const { billing } = await getPrimaryTeamBilling()
+  if (!isClinicPlan(billing.planCode)) redirect("/dashboard")
 }
 
 /** Papel mínimo exigido numa equipe. `manager` cobre owner+manager; `owner` só owner. */
