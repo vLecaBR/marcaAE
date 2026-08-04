@@ -66,35 +66,54 @@ export interface PlanConfig {
 }
 
 /**
- * Mapa canônico dos planos vigentes (spec §1.4 / §8.1).
- * Fees: SOLO 3,49% · CLINICA 2,49% · PRO 1,99% ("plano maior, fee menor").
+ * Mapa canônico dos planos vigentes (spec §1.4 / §8.1 · Q1 do `docs/spec_q.md`).
  *
- * ⚠️ Preços são placeholders alinháveis ao Stripe/backend; o backend confirma o valor cobrado.
- * SOLO é o **plano base** (gratuito, fee maior) — é para onde o trial faz downgrade ao expirar (§8.2).
+ * Quatro planos em duas trilhas, com **escada de taxa decrescente** ("plano maior, taxa menor"):
+ *   Individual:  SOLO 10% (grátis)  → SOLO_PRO 5%
+ *   Clínica:     CLINICA 2,49%      → CLINICA_PRO 1,99%
+ *
+ * Modelo de preço **fixo** (sem +R$/prof extra) e **taxa só percentual** (sem custo fixo por
+ * consulta) — decisões de produto aprovadas em 2026-08-04. Esta é a fonte única de preços/taxas no
+ * front; o backend confirma o valor cobrado e aplica a `feeBps` no split (§2.5).
+ *
+ * SOLO é o **plano base** (gratuito, fee maior) — para onde o trial faz downgrade ao expirar (§8.2).
  */
 export const PLAN_CONFIG: Record<PlanCode, PlanConfig> = {
   SOLO: {
     planCode: "SOLO",
     name: "Solo",
+    audience: "individual",
     monthlyPriceCents: 0,
-    feeBps: 349,
+    feeBps: 1000,
     limits: { maxBookingsPerMonth: 50, maxMembers: 1, maxEventTypes: 3 },
     premiumFeatures: [],
     order: 0,
   },
+  SOLO_PRO: {
+    planCode: "SOLO_PRO",
+    name: "Solo Pro",
+    audience: "individual",
+    monthlyPriceCents: 49_00,
+    feeBps: 500,
+    limits: { maxBookingsPerMonth: null, maxMembers: 1, maxEventTypes: null },
+    premiumFeatures: ["whatsapp_reminders"],
+    order: 1,
+  },
   CLINICA: {
     planCode: "CLINICA",
     name: "Clínica",
-    monthlyPriceCents: 49_00,
+    audience: "clinic",
+    monthlyPriceCents: 129_00,
     feeBps: 249,
-    limits: { maxBookingsPerMonth: null, maxMembers: 10, maxEventTypes: null },
+    limits: { maxBookingsPerMonth: null, maxMembers: 5, maxEventTypes: null },
     premiumFeatures: ["team_finance", "whatsapp_reminders", "custom_branding"],
-    order: 1,
+    order: 2,
   },
-  PRO: {
-    planCode: "PRO",
-    name: "Pro",
-    monthlyPriceCents: 99_00,
+  CLINICA_PRO: {
+    planCode: "CLINICA_PRO",
+    name: "Clínica Pro",
+    audience: "clinic",
+    monthlyPriceCents: 199_00,
     feeBps: 199,
     limits: { maxBookingsPerMonth: null, maxMembers: null, maxEventTypes: null },
     premiumFeatures: [
@@ -104,12 +123,17 @@ export const PLAN_CONFIG: Record<PlanCode, PlanConfig> = {
       "advanced_reports",
       "priority_support",
     ],
-    order: 2,
+    order: 3,
   },
 }
 
 /** Ordem de exibição/upgrade (do menor para o maior). */
-export const PLAN_ORDER: readonly PlanCode[] = ["SOLO", "CLINICA", "PRO"] as const
+export const PLAN_ORDER: readonly PlanCode[] = [
+  "SOLO",
+  "SOLO_PRO",
+  "CLINICA",
+  "CLINICA_PRO",
+] as const
 
 /** Rótulos pt-BR das features premium (reuso em pricing table e `PremiumGate`). */
 export const PREMIUM_FEATURE_LABELS: Record<PremiumFeature, string> = {
@@ -162,6 +186,29 @@ export function getPlanConfig(planCode: string | null | undefined): PlanConfig {
 /** É um plano pago (não o base gratuito)? */
 export function isPaidPlan(planCode: string | null | undefined): boolean {
   return getPlanConfig(planCode).monthlyPriceCents > 0
+}
+
+/** Trilha do plano (individual vs clínica), com fallback seguro no plano base. */
+export function getPlanAudience(planCode: string | null | undefined): PlanAudience {
+  return getPlanConfig(planCode).audience
+}
+
+/**
+ * É um plano da trilha **clínica** (`CLINICA`/`CLINICA_PRO`)? Usado por Q2/Q3 para decidir se o
+ * bloco de "Clínica" (menu + rotas) e os tiers de clínica aparecem para o usuário.
+ */
+export function isClinicPlan(planCode: string | null | undefined): boolean {
+  return getPlanAudience(planCode) === "clinic"
+}
+
+/** É um plano da trilha **individual** (`SOLO`/`SOLO_PRO`)? Complemento de `isClinicPlan`. */
+export function isIndividualPlan(planCode: string | null | undefined): boolean {
+  return getPlanAudience(planCode) === "individual"
+}
+
+/** Planos de uma trilha específica, em ordem de exibição — insumo das pricing tables agrupadas (Q3). */
+export function plansByAudience(audience: PlanAudience): PlanConfig[] {
+  return PLAN_ORDER.map((code) => PLAN_CONFIG[code]).filter((p) => p.audience === audience)
 }
 
 /** O plano libera esta feature premium por si só (ignora trial)? */
