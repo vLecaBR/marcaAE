@@ -55,9 +55,14 @@ function attachSetCookies(res: NextResponse, setCookies: string[]): void {
   for (const c of setCookies) res.headers.append("set-cookie", c)
 }
 
-/** Converte um `ApiResult`/erro numa `NextResponse` JSON com os cookies certos. */
+/** Converte um `ApiResult`/erro numa `NextResponse` com os cookies certos. */
 function jsonWithCookies(data: unknown, status: number, setCookies: string[]): NextResponse {
-  const res = NextResponse.json(data ?? null, { status })
+  // 204/205/304 não podem ter corpo — `Response.json()` lança "Invalid response status code".
+  // O backend responde 204 em mutations sem retorno (ex.: PUT /me/profile), então tratamos aqui.
+  const bodyless = status === 204 || status === 205 || status === 304
+  const res = bodyless
+    ? new NextResponse(null, { status })
+    : NextResponse.json(data ?? null, { status })
   attachSetCookies(res, setCookies)
   return res
 }
