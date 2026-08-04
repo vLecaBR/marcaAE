@@ -32,7 +32,7 @@ export function PricingSection() {
           Planos que crescem com a sua clínica
         </h2>
         <p className="mx-auto mt-4 max-w-lg text-muted-foreground" style={{ lineHeight: 1.6 }}>
-          Comece grátis e evolua quando quiser. Quanto maior o plano, menor a taxa por consulta — sem
+          Comece grátis e evolua quando quiser. Quanto maior o plano, menor a taxa por consulta sem
           fidelidade, cancele quando precisar.
         </p>
       </div>

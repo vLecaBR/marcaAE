@@ -142,7 +142,7 @@ export default async function RootPage() {
               { icon: CalendarCheck, title: "Agenda sem conflitos", desc: "Regras de disponibilidade por profissional, intervalos e antecedência mínima. Cada horário aberto só uma vez." },
               { icon: Users, title: "Equipe da clínica", desc: "Vários profissionais, papéis e permissões. Cada um com sua agenda, tudo sob o mesmo consultório." },
               { icon: Wallet, title: "Recebimento transparente", desc: "Pacientes pagam via PIX ou cartão no agendamento. Repasse e taxas sempre à vista, sem surpresa." },
-              { icon: Stethoscope, title: "Tipos de consulta", desc: "Retorno, primeira consulta, avaliação — cada um com sua duração, valor e modalidade." },
+              { icon: Stethoscope, title: "Tipos de consulta", desc: "Retorno, primeira consulta, avaliação cada um com sua duração, valor e modalidade." },
               { icon: ShieldCheck, title: "Segurança em primeiro lugar", desc: "Em conformidade com a LGPD. Dados dos pacientes protegidos e nunca vendidos." },
               { icon: Clock, title: "Lembretes automáticos", desc: "Confirmações e lembretes reduzem faltas e mantêm a agenda cheia sem trabalho manual." },
             ].map((f) => (
@@ -187,7 +187,7 @@ export default async function RootPage() {
               <h2 className="text-white" style={{ fontSize: 36, fontWeight: 700, lineHeight: 1.1 }}>Sua clínica, no controle da agenda.</h2>
               <p className="mt-3 text-white/85 max-w-md mx-auto">Junte-se a profissionais de saúde que agendam, recebem e crescem com o MarcaAí.</p>
               <Button asChild size="lg" variant="secondary" className="mt-7 h-12 px-7 rounded-xl text-brand-primary font-medium hover:bg-white/90">
-                <Link href="/login">Criar conta grátis — 30 dias</Link>
+                <Link href="/login">Criar conta grátis 30 dias</Link>
               </Button>
             </div>
           </Card>
