@@ -27,3 +27,25 @@ export async function createCheckoutSessionAction(
     throw err
   }
 }
+
+/**
+ * Checkout de assinatura **individual** (Solo Pro) — `POST /user/billing/checkout` (Q7).
+ * Estrutura separada da clínica: envia o `planCode` individual e recebe `{ url }` do Stripe.
+ */
+export async function createUserCheckoutSessionAction(
+  planCode: string,
+): Promise<{ url: string } | { error: string }> {
+  try {
+    const res = await serverApiFetch<{ url: string }>(endpoints.userBilling.checkout, {
+      method: "POST",
+      body: { planCode },
+    })
+    if (!res?.url) return { error: "Não foi possível gerar o link de pagamento." }
+    return { url: res.url }
+  } catch (err) {
+    if (isApiError(err)) {
+      return { error: err.problem.detail || "Falha ao gerar o link de pagamento." }
+    }
+    throw err
+  }
+}

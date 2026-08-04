@@ -55,7 +55,19 @@ public sealed class BookingPaymentService(
             return PlanCatalog.ClinicaFeeBps; // clínica sem assinatura mapeada → taxa base de clínica
         }
 
-        // 3º — recebedor individual (USER): plano free Solo (10%).
+        // 3º — recebedor individual (USER): usa a assinatura individual (Solo Pro = 5%), se ativa;
+        // senão, plano free Solo (10%). Só vale o plano quando a assinatura está viva.
+        var userSub = await db.UserSubscriptions.AsNoTracking()
+            .Where(s => s.UserId == receiver.OwnerId)
+            .Select(s => new { s.Status, s.DefaultFeeBps, s.PlanCode })
+            .FirstOrDefaultAsync(ct);
+
+        var live = (userSub?.Status ?? "").Trim().ToLowerInvariant() is "active" or "trialing";
+        if (live)
+        {
+            if (userSub!.DefaultFeeBps is { } bps) return bps;
+            if (!string.IsNullOrEmpty(userSub.PlanCode)) return PlanCatalog.FeeBpsFor(userSub.PlanCode);
+        }
         return PlanCatalog.SoloFeeBps;
     }
 

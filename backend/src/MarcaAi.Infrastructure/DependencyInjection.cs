@@ -68,6 +68,9 @@ public static class DependencyInjection
         services.AddScoped<IBookingService, BookingService>();
         services.AddScoped<IAvailabilityService, AvailabilityService>();
         services.AddScoped<IBillingService, StripeBillingService>();
+        // Billing individual (Solo Pro) + enforcement de features premium por plano (Q7).
+        services.AddScoped<IUserBillingService, UserBillingService>();
+        services.AddScoped<IPlanAccessService, PlanAccessService>();
         services.AddHttpClient<IPixPaymentService, MercadoPagoPixService>();
         services.AddScoped<IPayoutAccountService, PayoutAccountService>();
 

@@ -68,16 +68,35 @@ public sealed class StripeBillingService(
         }
     }
 
-    public async Task<TeamBillingDto?> GetStatusAsync(string teamId, string userId, CancellationToken ct = default)
+    public async Task<BillingStatusDto?> GetStatusAsync(string teamId, string userId, CancellationToken ct = default)
     {
         var member = await db.TeamMembers.AsNoTracking()
             .FirstOrDefaultAsync(m => m.TeamId == teamId && m.UserId == userId, ct);
         if (member is null) return null;
 
         var sub = await db.Subscriptions.AsNoTracking().FirstOrDefaultAsync(s => s.TeamId == teamId, ct);
-        var status = sub?.Status ?? "none";
-        var active = status is "active" or "trialing";
-        return new TeamBillingDto(teamId, status, active, sub?.StripeCurrentPeriodEnd);
+        var (planCode, active) = BillingStatusMapper.Effective(sub?.Status, sub?.PlanCode);
+
+        // Uso real da clínica no mês corrente.
+        var now = DateTime.UtcNow;
+        var monthStart = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var monthEnd = monthStart.AddMonths(1);
+        var teamEventTypeIds = db.EventTypes.Where(e => e.TeamId == teamId).Select(e => e.Id);
+        var bookings = await db.Bookings.CountAsync(
+            b => teamEventTypeIds.Contains(b.EventTypeId) && b.StartTime >= monthStart && b.StartTime < monthEnd, ct);
+        var members = await db.TeamMembers.CountAsync(m => m.TeamId == teamId, ct);
+        var eventTypes = await db.EventTypes.CountAsync(e => e.TeamId == teamId, ct);
+
+        var dto = new BillingStatusDto(
+            TeamId: teamId,
+            PlanCode: planCode,
+            Status: BillingStatusMapper.MapStatus(sub?.Status),
+            Active: active,
+            CurrentPeriodEnd: sub?.StripeCurrentPeriodEnd,
+            Trial: BillingStatusMapper.Trial(sub?.Status, null),
+            Usage: new PlanUsageDto(bookings, members, eventTypes),
+            Limits: BillingStatusMapper.Limits(planCode));
+        return dto;
     }
 
     public async Task HandleWebhookAsync(string payload, string signature, CancellationToken ct = default)
@@ -96,22 +115,34 @@ public sealed class StripeBillingService(
             case "checkout.session.completed":
             {
                 if (e.Data.Object is not Session session || session.SubscriptionId is null) break;
-                if (session.Metadata is null || !session.Metadata.TryGetValue("teamId", out var teamId)) break;
                 var sub = await new SubscriptionService().GetAsync(session.SubscriptionId, cancellationToken: ct);
-                await UpsertAsync(teamId, sub, ct);
+                // Metadata roteia clínica (teamId) vs indivíduo (userId).
+                if (session.Metadata is not null && session.Metadata.TryGetValue("teamId", out var teamId) && !string.IsNullOrEmpty(teamId))
+                    await UpsertAsync(teamId, sub, ct);
+                else if (session.Metadata is not null && session.Metadata.TryGetValue("userId", out var userId) && !string.IsNullOrEmpty(userId))
+                    await UpsertUserAsync(userId, sub, ct);
                 break;
             }
             case "customer.subscription.updated":
             case "customer.subscription.deleted":
             {
                 if (e.Data.Object is not Subscription sub) break;
+                var priceId = FirstPriceId(sub);
                 var existing = await db.Subscriptions.FirstOrDefaultAsync(s => s.StripeSubscriptionId == sub.Id, ct);
                 if (existing is not null)
                 {
-                    var priceId = FirstPriceId(sub);
                     existing.Status = sub.Status;
                     existing.StripePriceId = priceId ?? existing.StripePriceId;
                     ApplyPlan(existing, priceId, sub);
+                    await db.SaveChangesAsync(ct);
+                    break;
+                }
+                var existingUser = await db.UserSubscriptions.FirstOrDefaultAsync(s => s.StripeSubscriptionId == sub.Id, ct);
+                if (existingUser is not null)
+                {
+                    existingUser.Status = sub.Status;
+                    existingUser.StripePriceId = priceId ?? existingUser.StripePriceId;
+                    ApplyUserPlan(existingUser, priceId);
                     await db.SaveChangesAsync(ct);
                 }
                 break;
@@ -147,6 +178,50 @@ public sealed class StripeBillingService(
             ApplyPlan(existing, priceId, sub);
         }
         await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Upsert da assinatura **individual** (Solo Pro) a partir do webhook. Ver Q7.</summary>
+    private async Task UpsertUserAsync(string userId, Subscription sub, CancellationToken ct)
+    {
+        var existing = await db.UserSubscriptions.FirstOrDefaultAsync(s => s.UserId == userId, ct);
+        var customerId = sub.CustomerId ?? "";
+        var priceId = FirstPriceId(sub);
+
+        if (existing is null)
+        {
+            var created = new Domain.Entities.UserSubscription
+            {
+                UserId = userId,
+                StripeCustomerId = customerId,
+                StripeSubscriptionId = sub.Id,
+                StripePriceId = priceId,
+                Status = sub.Status,
+                TrialEndsAt = sub.TrialEnd,
+            };
+            ApplyUserPlan(created, priceId);
+            db.UserSubscriptions.Add(created);
+        }
+        else
+        {
+            if (!string.IsNullOrEmpty(customerId)) existing.StripeCustomerId = customerId;
+            existing.StripeSubscriptionId = sub.Id;
+            existing.StripePriceId = priceId;
+            existing.Status = sub.Status;
+            existing.TrialEndsAt = sub.TrialEnd;
+            ApplyUserPlan(existing, priceId);
+        }
+        await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Mapeia o price_id → plano individual e grava PlanCode/DefaultFeeBps.</summary>
+    private void ApplyUserPlan(Domain.Entities.UserSubscription target, string? priceId)
+    {
+        var (planCode, defaultFeeBps) = MapPlan(priceId);
+        if (planCode is not null)
+        {
+            target.PlanCode = planCode;
+            target.DefaultFeeBps = defaultFeeBps;
+        }
     }
 
     private static string? FirstPriceId(Subscription sub) =>

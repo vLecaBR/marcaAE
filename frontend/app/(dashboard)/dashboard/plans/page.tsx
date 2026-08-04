@@ -157,6 +157,7 @@ export default async function PlansPage() {
                     teamId={teamId}
                     targetPlan={plan.planCode}
                     direction={direction}
+                    audience={plan.audience}
                   />
                 )}
               </div>

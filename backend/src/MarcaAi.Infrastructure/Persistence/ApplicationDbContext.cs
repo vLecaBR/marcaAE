@@ -33,6 +33,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<BookingResponse> BookingResponses => Set<BookingResponse>();
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
+    public DbSet<UserSubscription> UserSubscriptions => Set<UserSubscription>();
     public DbSet<PayoutAccount> PayoutAccounts => Set<PayoutAccount>();
 
     protected override void OnModelCreating(ModelBuilder b)
@@ -225,6 +226,18 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.HasIndex(x => x.StripeSubscriptionId).IsUnique();
             e.HasOne(x => x.Team).WithOne(t => t.Subscription)
                 .HasForeignKey<Subscription>(x => x.TeamId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ---- user_subscriptions (assinatura individual do profissional; Q7) ----
+        b.Entity<UserSubscription>(e =>
+        {
+            e.ToTable("user_subscriptions");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.UserId).IsUnique();
+            e.HasIndex(x => x.StripeCustomerId).IsUnique();
+            e.HasIndex(x => x.StripeSubscriptionId).IsUnique();
+            e.HasOne(x => x.User).WithMany()
+                .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // ---- payout_accounts (sub-conta de recebimento; Fase 2 do split) ----

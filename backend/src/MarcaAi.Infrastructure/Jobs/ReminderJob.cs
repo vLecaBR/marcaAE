@@ -12,7 +12,8 @@ namespace MarcaAi.Infrastructure.Jobs;
 /// 2 horas e ainda não foram lembradas. Marca reminderSent=true. Porte do cron/reminders do Next.
 /// </summary>
 public sealed class ReminderJob(
-    ApplicationDbContext db, INotificationService notify, ILogger<ReminderJob> logger) : IReminderJob
+    ApplicationDbContext db, INotificationService notify, IPlanAccessService plans,
+    ILogger<ReminderJob> logger) : IReminderJob
 {
     public async Task DispatchDueAsync(CancellationToken cancellationToken = default)
     {
@@ -44,7 +45,9 @@ public sealed class ReminderJob(
                 b.GuestTimeZone, b.Owner.TimeZone,
                 b.EventType.LocationType, b.MeetingUrl, b.EventType.RequiresConfirm);
 
-            await notify.NotifyBookingReminderAsync(n, cancellationToken);
+            // WhatsApp reminder é premium (Q7): só envia se o plano do profissional permitir.
+            var allowWhatsApp = await plans.UserHasFeatureAsync(b.UserId, "whatsapp_reminders", cancellationToken);
+            await notify.NotifyBookingReminderAsync(n, allowWhatsApp, cancellationToken);
             b.ReminderSent = true;
         }
 

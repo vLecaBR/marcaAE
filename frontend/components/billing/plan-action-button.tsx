@@ -12,23 +12,28 @@
 
 import { useState } from "react"
 import { ArrowUpRight, ArrowDownRight } from "lucide-react"
-import { createCheckoutSessionAction } from "@/lib/actions/billing"
+import { createCheckoutSessionAction, createUserCheckoutSessionAction } from "@/lib/actions/billing"
 import { cn } from "@/lib/utils"
-import type { PlanCode } from "@/lib/plans/plan-config"
+import type { PlanAudience, PlanCode } from "@/lib/plans/plan-config"
 
 interface PlanActionButtonProps {
   teamId: string
   targetPlan: PlanCode
   direction: "upgrade" | "downgrade"
+  /** Trilha do plano-alvo: define o checkout (individual → /user/billing, clínica → /teams). */
+  audience?: PlanAudience
 }
 
-export function PlanActionButton({ teamId, direction }: PlanActionButtonProps) {
+export function PlanActionButton({ teamId, targetPlan, direction, audience = "clinic" }: PlanActionButtonProps) {
   const [loading, setLoading] = useState(false)
   const isUpgrade = direction === "upgrade"
 
   async function handleClick() {
     setLoading(true)
-    const result = await createCheckoutSessionAction(teamId)
+    const result =
+      audience === "individual"
+        ? await createUserCheckoutSessionAction(targetPlan)
+        : await createCheckoutSessionAction(teamId)
     if ("url" in result) {
       window.location.assign(result.url)
     } else {

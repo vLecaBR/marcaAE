@@ -17,7 +17,7 @@ namespace MarcaAi.Api.Controllers;
 [ApiController]
 [Route("api/v1/teams")]
 [Authorize]
-public sealed class TeamsController(IApplicationDbContext db) : ControllerBase
+public sealed class TeamsController(IApplicationDbContext db, IPlanAccessService plans) : ControllerBase
 {
     // ── Listar as equipes do usuário ─────────────────────────────────────────
     [HttpGet]
@@ -102,6 +102,13 @@ public sealed class TeamsController(IApplicationDbContext db) : ControllerBase
             return Problem(statusCode: StatusCodes.Status409Conflict, detail: "Este slug já está em uso por outra equipe.");
 
         var team = await db.Teams.FirstAsync(t => t.Id == id, ct);
+
+        // Enforcement premium (Q7): personalização de marca (BrandColor) exige o recurso no plano.
+        var brandingChanged = !string.IsNullOrWhiteSpace(input.BrandColor) && input.BrandColor != team.BrandColor;
+        if (brandingChanged && !await plans.TeamHasFeatureAsync(id, "custom_branding", ct))
+            return Problem(statusCode: StatusCodes.Status403Forbidden,
+                detail: "Personalização de marca é um recurso dos planos Clínica. Faça upgrade para usá-la.");
+
         team.Name = input.Name;
         team.Slug = input.Slug;
         team.Description = input.Description;

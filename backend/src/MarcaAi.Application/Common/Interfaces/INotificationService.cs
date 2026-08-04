@@ -10,5 +10,9 @@ public interface INotificationService
 
     Task NotifyBookingCancelledAsync(BookingNotification n, string? reason, CancellationToken cancellationToken = default);
 
-    Task NotifyBookingReminderAsync(BookingNotification n, CancellationToken cancellationToken = default);
+    /// <param name="allowWhatsApp">
+    /// Se false, o lembrete por WhatsApp é omitido (o profissional não tem o recurso `whatsapp_reminders`
+    /// no plano — enforcement premium do Q7). O e-mail é sempre enviado.
+    /// </param>
+    Task NotifyBookingReminderAsync(BookingNotification n, bool allowWhatsApp = true, CancellationToken cancellationToken = default);
 }

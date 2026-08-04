@@ -27,7 +27,7 @@ public sealed class BillingController(IBillingService billing) : ControllerBase
 
     /// <summary>Status da assinatura da clínica.</summary>
     [HttpGet]
-    public async Task<ActionResult<TeamBillingDto>> Status(string teamId, CancellationToken ct)
+    public async Task<ActionResult<BillingStatusDto>> Status(string teamId, CancellationToken ct)
     {
         var userId = User.GetUserId();
         if (userId is null) return Unauthorized();

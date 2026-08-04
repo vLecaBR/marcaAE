@@ -65,7 +65,7 @@ public sealed class NotificationService(
             (string.IsNullOrWhiteSpace(reason) ? "" : $"\n\nMotivo: {reason}"), ct);
     }
 
-    public async Task NotifyBookingReminderAsync(BookingNotification n, CancellationToken ct = default)
+    public async Task NotifyBookingReminderAsync(BookingNotification n, bool allowWhatsApp = true, CancellationToken ct = default)
     {
         var whenGuest = FormatWhen(n.StartTimeUtc, n.GuestTimeZone);
         var manageUrl = $"{AppUrl}/booking/{n.Uid}";
@@ -74,9 +74,11 @@ public sealed class NotificationService(
             Template($"Lembrete, {n.GuestName}! ⏰",
                 $"Você tem <b>{n.EventTitle}</b> com {n.OwnerName} em breve.",
                 $"📅 {whenGuest}", locLine, manageUrl, "Ver consulta"), ct);
-        await Whats(n.GuestPhone,
-            $"Lembrete! ⏰\n\nOlá, *{n.GuestName}*, você tem *{n.EventTitle}* com {n.OwnerName}.\n\n📅 {whenGuest}" +
-            (locLine is null ? "" : $"\n{locLine}"), ct);
+        // Lembrete por WhatsApp é premium (Q7): só dispara se o plano do profissional permitir.
+        if (allowWhatsApp)
+            await Whats(n.GuestPhone,
+                $"Lembrete! ⏰\n\nOlá, *{n.GuestName}*, você tem *{n.EventTitle}* com {n.OwnerName}.\n\n📅 {whenGuest}" +
+                (locLine is null ? "" : $"\n{locLine}"), ct);
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────

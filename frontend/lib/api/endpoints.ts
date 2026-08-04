@@ -27,6 +27,11 @@ export const endpoints = {
     billing: (teamId: string) => `/teams/${teamId}/billing`,
     billingCheckout: (teamId: string) => `/teams/${teamId}/billing/checkout`,
   },
+  // Billing individual (Solo/Solo Pro) — estrutura separada da clínica (Q7).
+  userBilling: {
+    root: "/user/billing",
+    checkout: "/user/billing/checkout",
+  },
   eventTypes: {
     root: "/event-types",
     byId: (id: string) => `/event-types/${id}`,

@@ -51,16 +51,26 @@ export async function getTeamBilling(teamId: string): Promise<BillingResult> {
   }
 }
 
+/** Billing **individual** do profissional (Solo/Solo Pro) — `GET /user/billing` (Q7). */
+export async function getUserBilling(): Promise<BillingResult> {
+  try {
+    const b = await serverApiFetch<Partial<TeamBillingDto>>(endpoints.userBilling.root)
+    return { billing: isFullBilling(b) ? b : soloDefaultBilling("") }
+  } catch {
+    return { billing: soloDefaultBilling("") }
+  }
+}
+
 /**
- * Resolve a clínica principal do usuário e seu billing — usado pelo banner de trial no layout,
- * que não conhece um `teamId`. Sem clínica → default neutro do Solo (sem trial).
+ * Billing do usuário para o layout (nav/trial). Se pertence a uma clínica, usa o billing dela;
+ * senão, usa o billing individual real (Solo/Solo Pro). Sem nada → default neutro do Solo.
  */
 export async function getPrimaryTeamBilling(): Promise<BillingResult> {
   try {
     const teams = (await serverApiFetch<TeamSummaryDto[]>(endpoints.teams.root)) ?? []
     if (teams.length > 0) return getTeamBilling(teams[0].id)
-    return { billing: soloDefaultBilling("") }
+    return getUserBilling()
   } catch {
-    return { billing: soloDefaultBilling("") }
+    return getUserBilling()
   }
 }
