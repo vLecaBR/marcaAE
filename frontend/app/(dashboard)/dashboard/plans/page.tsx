@@ -1,42 +1,51 @@
 /**
- * Tela de Planos / Upgrade **no contexto de clínica**. Rota: `/dashboard/team/plans` (dentro do
- * escopo `dashboard/team/**`, portanto protegida pelo gating de trilha clínica do Q2). Guarda:
- * `requireOnboarded()`.
+ * Tela de Planos / Assinatura — rota **neutra** (Q3 · `docs/spec_q.md`). Rota: `/dashboard/plans`
+ * (= `PLANS_ROUTE`). Guarda: `requireOnboarded()`. Destino dos CTAs do `PremiumGate` e do
+ * `TrialBanner`.
  *
- * Q3: os CTAs de upgrade (`PremiumGate`/`TrialBanner`) agora apontam para a tela **neutra**
- * `/dashboard/plans` (`PLANS_ROUTE`). Esta tela permanece só para o contexto de clínica e, por isso,
- * mostra **apenas a trilha clínica** (CLINICA/CLINICA_PRO) via `plansByAudience("clinic")` — sem
- * poluir com planos individuais. Preços/limites 100% derivados de `PLAN_CONFIG` (§8.1); plano atual
- * pelo `TeamBillingDto` (fallback mock §2.4). CLINICA em destaque ("Popular").
+ * Diferente da tela antiga (`/dashboard/team/plans`, que vive no contexto de clínica com
+ * `ClinicTabs`), esta é acessível fora do escopo de clínica e mostra **apenas a trilha do próprio
+ * usuário**: um plano individual (Solo/Solo Pro) só vê planos individuais — sem poluição com tiers
+ * de clínica (decisão de produto 2026-08-04). A separação usa o campo `audience` de `PLAN_CONFIG`
+ * via `plansByAudience`.
+ *
+ * Preços/limites/taxas 100% derivados de `PLAN_CONFIG` (nenhum valor hardcoded). O Solo é um fluxo
+ * **free real** (não "demo"): a tela renderiza normalmente. A troca de plano dispara o fluxo de
+ * billing existente com o `planCode` do card; a lógica financeira (Stripe/checkout por plano) é Q4.
  */
 
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, Check, Sparkles, FlaskConical } from "lucide-react"
+import { ArrowLeft, Check, Sparkles } from "lucide-react"
 import { requireOnboarded } from "@/lib/auth/guards"
 import { serverApiFetch } from "@/lib/api/http-client"
 import { endpoints } from "@/lib/api/endpoints"
 import { isApiError } from "@/lib/api/problem-details"
 import { getTeamBilling } from "@/lib/api/billing"
-import { ClinicTabs } from "@/components/team/clinic-tabs"
 import { PlanActionButton } from "@/components/billing/plan-action-button"
 import { formatBRLCents, cn } from "@/lib/utils"
 import {
   getPlanConfig,
+  getPlanAudience,
   plansByAudience,
   planFeatureLines,
 } from "@/lib/plans/plan-config"
+import type { PlanCode } from "@/lib/plans/plan-config"
 import type { TeamSummaryDto } from "@/lib/api/types"
 
 export const metadata: Metadata = { title: "Planos · MarcaAí" }
 
-/** Plano em destaque na pricing table. */
-const RECOMMENDED_PLAN = "CLINICA"
+/** Plano em destaque por trilha: o pago da trilha é o upgrade natural. */
+const RECOMMENDED_BY_AUDIENCE: Record<"individual" | "clinic", PlanCode> = {
+  individual: "SOLO_PRO",
+  clinic: "CLINICA",
+}
 
 export default async function PlansPage() {
   await requireOnboarded()
 
-  // Resolve a clínica principal para o billing (com fallback mock §2.4).
+  // Resolve a clínica principal só para ler o billing (com fallback mock §2.4). Um usuário
+  // individual sem clínica cai no billing mock (planCode SOLO) — coerente com o fluxo free real.
   let teamId = "mock-clinic"
   try {
     const teams = (await serverApiFetch<TeamSummaryDto[]>(endpoints.teams.root)) ?? []
@@ -47,34 +56,29 @@ export default async function PlansPage() {
 
   const { billing, isDemo } = await getTeamBilling(teamId)
   const currentPlan = getPlanConfig(billing.planCode)
+
+  // Mostra apenas a trilha do próprio usuário (individual só vê individual; clínica só vê clínica).
+  const audience = getPlanAudience(billing.planCode)
+  const plans = plansByAudience(audience)
+  const recommended = RECOMMENDED_BY_AUDIENCE[audience]
+
   const isTrialing = billing.trial.isTrialing
   const daysRemaining = billing.trial.daysRemaining ?? 0
 
   return (
-    <div className="max-w-5xl space-y-6">
-      <ClinicTabs canSeeFinance />
-
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <Link
-            href="/dashboard/team"
-            className="mb-2 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" /> Voltar para a clínica
-          </Link>
-          <h1 className="text-2xl font-semibold">Planos e assinatura</h1>
-          <p className="mt-1 max-w-prose text-sm text-muted-foreground">
-            Quanto maior o plano, menor a taxa por consulta. Escolha o que melhor acompanha o
-            crescimento da sua clínica.
-          </p>
-        </div>
-
-        {isDemo && (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-warning/10 px-3 py-1 text-xs font-medium text-warning">
-            <FlaskConical className="h-3.5 w-3.5" />
-            Dados de demonstração
-          </span>
-        )}
+    <div className="max-w-3xl space-y-6">
+      <header className="min-w-0">
+        <Link
+          href="/dashboard"
+          className="mb-2 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" /> Voltar para o início
+        </Link>
+        <h1 className="text-2xl font-semibold">Planos e assinatura</h1>
+        <p className="mt-1 max-w-prose text-sm text-muted-foreground">
+          Quanto maior o plano, menor a taxa por consulta. Escolha o que melhor acompanha o seu
+          crescimento.
+        </p>
       </header>
 
       {isTrialing && (
@@ -91,9 +95,9 @@ export default async function PlansPage() {
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start">
-        {plansByAudience("clinic").map((plan) => {
+        {plans.map((plan) => {
           const isCurrent = plan.planCode === currentPlan.planCode
-          const isRecommended = plan.planCode === RECOMMENDED_PLAN
+          const isRecommended = plan.planCode === recommended
           const direction = plan.order > currentPlan.order ? "upgrade" : "downgrade"
 
           return (
@@ -102,13 +106,13 @@ export default async function PlansPage() {
               className={cn(
                 "relative flex flex-col rounded-2xl border bg-card p-6 shadow-sm",
                 isRecommended
-                  ? "border-brand-primary ring-1 ring-brand-primary md:-mt-2 md:pb-8"
+                  ? "border-brand-primary ring-1 ring-brand-primary sm:-mt-2 sm:pb-8"
                   : "border-border/60",
               )}
             >
               {isRecommended && (
                 <span className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-brand-primary px-3 py-1 text-xs font-semibold text-white shadow-sm">
-                  <Sparkles className="h-3.5 w-3.5" /> Popular
+                  <Sparkles className="h-3.5 w-3.5" /> Recomendado
                 </span>
               )}
 
@@ -161,13 +165,6 @@ export default async function PlansPage() {
           )
         })}
       </div>
-
-      {isDemo && (
-        <p className="text-center text-xs text-muted-foreground">
-          Valores e plano atual ilustrativos. Ao conectar o billing real, esta tela reflete a
-          assinatura verdadeira e habilita a troca de plano automaticamente.
-        </p>
-      )}
     </div>
   )
 }

@@ -23,8 +23,12 @@ import { formatBRLCents } from "@/lib/utils"
 import { canUseFeature, minPlanForFeature, type PremiumFeature } from "@/lib/plans/plan-config"
 import type { TeamBillingDto } from "@/lib/api/billing-types"
 
-/** Rota da tela de planos/upgrade (Fase 8 · §8.1) — destino padrão dos CTAs de upgrade. */
-export const PLANS_ROUTE = "/dashboard/team/plans"
+/**
+ * Rota da tela de planos/upgrade — destino padrão dos CTAs de upgrade (PremiumGate + TrialBanner).
+ * Q3: aponta para a tela **neutra** `/dashboard/plans` (fora do contexto de clínica), que mostra a
+ * trilha do próprio usuário. A antiga `/dashboard/team/plans` permanece só para o contexto clínico.
+ */
+export const PLANS_ROUTE = "/dashboard/plans"
 
 interface PremiumGateProps {
   /** Feature exigida (mapeada em `plan-config.ts`). */
