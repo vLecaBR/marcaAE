@@ -30,8 +30,6 @@ interface Props {
   members: TeamMemberDto[]
   currentUserRole: TeamRoleName
   currentUserId: string
-  /** Em demonstração, as ações atualizam apenas o estado local (não chamam o backend). */
-  isDemo?: boolean
 }
 
 function initialsOf(member: TeamMemberDto): string {
@@ -44,7 +42,6 @@ export function ClinicMembers({
   members: initialMembers,
   currentUserRole,
   currentUserId,
-  isDemo = false,
 }: Props) {
   const router = useRouter()
   const [members, setMembers] = useState<TeamMemberDto[]>(initialMembers)
@@ -73,15 +70,6 @@ export function ClinicMembers({
   async function onInvite(data: InviteFormInput) {
     setInviteError(null)
 
-    if (isDemo) {
-      setMembers((prev) => [
-        ...prev,
-        { userId: `demo-${Date.now()}`, name: null, email: data.email, role: data.role },
-      ])
-      reset({ email: "", role: "MEMBER" })
-      return
-    }
-
     const res = await inviteTeamMemberAction({ teamId, email: data.email, role: data.role })
     if (res.success) {
       reset({ email: "", role: "MEMBER" })
@@ -96,8 +84,6 @@ export function ClinicMembers({
     setRowError(null)
     const previous = members
     setMembers((prev) => prev.map((m) => (m.userId === member.userId ? { ...m, role } : m)))
-
-    if (isDemo) return
 
     startTransition(async () => {
       const res = await updateTeamMemberRoleAction({
@@ -119,8 +105,6 @@ export function ClinicMembers({
     setRowError(null)
     const previous = members
     setMembers((prev) => prev.filter((m) => m.userId !== member.userId))
-
-    if (isDemo) return
 
     startTransition(async () => {
       const res = await removeTeamMemberAction(teamId, member.userId)

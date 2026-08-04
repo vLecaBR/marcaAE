@@ -19,8 +19,16 @@ import { isApiError } from "@/lib/api/problem-details"
 import { PayoutStatusCard } from "@/components/payouts/payout-status-card"
 import { PayoutBalanceCard } from "@/components/payouts/payout-balance-card"
 import { FeeTransparency } from "@/components/payouts/fee-transparency"
-import { MOCK_PAYOUT_BALANCE, MOCK_PAYOUT_TRANSACTIONS } from "@/lib/mocks/payouts"
-import type { PayoutAccountDto } from "@/lib/api/payout-types"
+import type { PayoutAccountDto, PayoutBalanceDto } from "@/lib/api/payout-types"
+
+/** Saldo zerado até o provedor expor os valores reais — a UI mostra empty state, nunca mock. */
+const EMPTY_BALANCE: PayoutBalanceDto = {
+  currency: "BRL",
+  availableCents: 0,
+  pendingCents: 0,
+  paidOutCents: 0,
+  nextPayoutDate: null,
+}
 
 export const metadata = { title: "Recebimentos · MarcaAí" }
 
@@ -52,14 +60,9 @@ export default async function RecebimentosPage() {
 
       <FeeTransparency />
 
-      {/* Saldo/saques só fazem sentido com a conta ativa; enquanto o backend não expõe os
-          valores, exibimos a demonstração para quem já ativou. */}
-      {isActive && (
-        <PayoutBalanceCard
-          balance={MOCK_PAYOUT_BALANCE}
-          transactions={MOCK_PAYOUT_TRANSACTIONS}
-        />
-      )}
+      {/* Saldo/saques só aparecem com a conta ativa. Sem endpoint de saldo real ainda → saldo
+          zerado + extrato vazio (empty state neutro), nunca dados de demonstração. */}
+      {isActive && <PayoutBalanceCard balance={EMPTY_BALANCE} transactions={[]} />}
 
       <Link
         href="/dashboard/financeiro"

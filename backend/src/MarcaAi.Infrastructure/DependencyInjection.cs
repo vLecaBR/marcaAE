@@ -84,6 +84,8 @@ public static class DependencyInjection
         // permitindo que o BookingPaymentService resolva MERCADO_PAGO por IEnumerable.
         services.AddHttpClient<ISplitPaymentService, MercadoPagoSplitService>();
         services.AddScoped<IBookingPaymentService, BookingPaymentService>();
+        // Leitura financeira (Fase 5): projeções agregadas dos snapshots de Booking.
+        services.AddScoped<IFinanceReportService, MarcaAi.Infrastructure.Finance.FinanceReportService>();
         services.AddHttpClient<IGoogleCalendarService, GoogleCalendarService>();
         services.AddScoped<IUserProvisioning, UserProvisioning>();
         // E-mail: Resend se houver API key; senão, loga o link no console (dev).

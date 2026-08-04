@@ -3,16 +3,15 @@
  * Guarda: `requireOnboarded()` + RBAC por papel (OWNER/ADMIN). Membros comuns NÃO veem o
  * faturamento dos colegas — bloqueio por renderização condicional (a aba nem aparece para eles).
  *
- * Leitura em RSC (ADR-0001): resolve a clínica principal via `GET /teams` e busca o consolidado em
- * `GET /finance/teams/{teamId}/summary`. Como o `FinanceController` ainda não está finalizado
- * (docs/backend-backlog.md), cai para dados de demonstração (`MOCK_TEAM_FINANCE`) com o selo
- * "Dados de demonstração". Plugar o backend real é só deixar de usar o mock.
+ * Leitura em RSC (ADR-0001): resolve a clínica principal via `GET /teams` e busca o consolidado
+ * real em `GET /finance/teams/{teamId}/summary` (Q5). Sem movimentação → empty state neutro (os
+ * componentes já tratam listas vazias), nunca números inventados.
  */
 
 import type { Metadata } from "next"
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { FlaskConical, Building2, Lock, ArrowLeft } from "lucide-react"
+import { Building2, Lock, ArrowLeft } from "lucide-react"
 import { requireOnboarded } from "@/lib/auth/guards"
 import { serverApiFetch } from "@/lib/api/http-client"
 import { endpoints } from "@/lib/api/endpoints"
@@ -23,11 +22,25 @@ import { ProfessionalRevenueList } from "@/components/finance/professional-reven
 import { PremiumGate } from "@/components/billing/premium-gate"
 import { getTeamBilling } from "@/lib/api/billing"
 import { MOCK_CLINIC } from "@/lib/mocks/team"
-import { MOCK_TEAM_FINANCE } from "@/lib/mocks/team-finance"
 import type { TeamFinanceSummaryDto } from "@/lib/api/finance-types"
 import type { TeamDetailDto, TeamRoleName, TeamSummaryDto } from "@/lib/api/types"
 
 export const metadata: Metadata = { title: "Financeiro da clínica · MarcaAí" }
+
+/** Resumo financeiro vazio (sem movimentação) — dispara os empty states dos componentes. */
+function emptyTeamFinance(teamId: string): TeamFinanceSummaryDto {
+  return {
+    teamId,
+    currency: "BRL",
+    period: "",
+    netTotalCents: 0,
+    platformFeesCents: 0,
+    avgTicketCents: 0,
+    paidBookingsCount: 0,
+    byProfessional: [],
+    plan: { planCode: "CLINICA", quantity: 1, defaultFeeBps: 249 },
+  }
+}
 
 export default async function TeamFinancePage() {
   await requireOnboarded()
@@ -81,19 +94,15 @@ export default async function TeamFinancePage() {
     )
   }
 
-  // Consolidado financeiro (com fallback para demonstração).
-  let finance: TeamFinanceSummaryDto = MOCK_TEAM_FINANCE
-  let isDemo = true
+  // Consolidado financeiro real (Q5). Sem clínica real / falha de leitura → resumo vazio.
+  let finance: TeamFinanceSummaryDto = emptyTeamFinance(teamId)
   if (hasRealClinic) {
     try {
       const res = await serverApiFetch<TeamFinanceSummaryDto>(endpoints.finance.teamSummary(teamId))
-      if (res?.byProfessional) {
-        finance = res
-        isDemo = false
-      }
+      if (res?.byProfessional) finance = res
     } catch (err) {
       if (isApiError(err) && err.kind === "unauthorized") redirect("/login")
-      // FinanceController ainda não finalizado → mantém a demonstração.
+      // Falha de leitura → mantém o resumo vazio (empty state).
     }
   }
 
@@ -101,25 +110,16 @@ export default async function TeamFinancePage() {
     <div className="max-w-4xl space-y-6">
       <ClinicTabs canSeeFinance />
 
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
-              <Building2 className="h-5 w-5" />
-            </span>
-            <h1 className="truncate text-2xl font-semibold">Financeiro · {clinicName}</h1>
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Consolidado de receita da clínica e o quanto cada profissional gerou no período.
-          </p>
-        </div>
-
-        {isDemo && (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-warning/10 px-3 py-1 text-xs font-medium text-warning">
-            <FlaskConical className="h-3.5 w-3.5" />
-            Dados de demonstração
+      <header className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
+            <Building2 className="h-5 w-5" />
           </span>
-        )}
+          <h1 className="truncate text-2xl font-semibold">Financeiro · {clinicName}</h1>
+        </div>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Consolidado de receita da clínica e o quanto cada profissional gerou no período.
+        </p>
       </header>
 
       {/* Gating premium (§8.1): liberado no trial (§8.2) ou em plano pago; senão, card de upgrade. */}
@@ -134,13 +134,6 @@ export default async function TeamFinancePage() {
           <ProfessionalRevenueList summary={finance} />
         </div>
       </PremiumGate>
-
-      {isDemo && (
-        <p className="text-center text-xs text-muted-foreground">
-          Os números acima são ilustrativos. Assim que o backend financeiro (FinanceController) for
-          concluído, esta tela passa a refletir dados reais automaticamente.
-        </p>
-      )}
     </div>
   )
 }

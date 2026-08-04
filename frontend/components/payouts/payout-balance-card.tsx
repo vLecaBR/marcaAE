@@ -3,11 +3,8 @@
 /**
  * Saldo e saques (Fase 4 · spec §5).
  *
- * ⚠️ DADOS MOCKADOS: o backend (`PayoutsController`/`FinanceController`) ainda não expõe saldo.
- * Estrutura/assinatura já definitivas (`lib/api/payout-types.ts`) — trocar a fonte pelo BFF não
- * altera esta UI. O aviso "dados de demonstração" é intencional até o backend estar pronto.
- *
- * A agregação é sempre do servidor (spec §6.3): aqui só formatamos centavos, nunca somamos.
+ * Estrutura/assinatura definitivas (`lib/api/payout-types.ts`). Sem movimentação (lista vazia) →
+ * empty state neutro. A agregação é sempre do servidor (spec §6.3): aqui só formatamos centavos.
  */
 
 import { Stagger, StaggerItem } from "@/components/motion/primitives"
@@ -76,9 +73,6 @@ export function PayoutBalanceCard({
         <h2 id="payout-balance-heading" className="text-lg font-semibold">
           Seu saldo
         </h2>
-        <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-          Dados de demonstração
-        </span>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
