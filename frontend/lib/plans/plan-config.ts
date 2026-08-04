@@ -12,7 +12,14 @@
  * Valores monetários em **centavos** (BRL). Fees em **basis points** (bps): 349 = 3,49%.
  */
 
-export type PlanCode = "SOLO" | "CLINICA" | "PRO"
+export type PlanCode = "SOLO" | "SOLO_PRO" | "CLINICA" | "CLINICA_PRO"
+
+/**
+ * Trilha do plano — separa a via **individual** (1 profissional) da via **clínica**
+ * (multiprofissional). Consumido pelo gating de menu/rotas (Q2) e pela tela de planos
+ * neutra (Q3) para decidir o que exibir a cada usuário.
+ */
+export type PlanAudience = "individual" | "clinic"
 
 /**
  * Features "premium" gateáveis via `<PremiumGate feature="...">` (a construir em 8.1).
@@ -45,6 +52,8 @@ export interface PlanConfig {
   planCode: PlanCode
   /** Rótulo de exibição (pt-BR). */
   name: string
+  /** Trilha do plano: individual (1 prof) ou clínica (multiprof). */
+  audience: PlanAudience
   /** Mensalidade em centavos (BRL). `0` = plano base gratuito. */
   monthlyPriceCents: number
   /** Fee da plataforma em basis points (spec §1.4 / F6.2). */
