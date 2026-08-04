@@ -1,11 +1,12 @@
 /**
  * Recebimentos (Fase 4 · spec §5). Rota: `/dashboard/recebimentos`. Guarda: `requireOnboarded()`.
  *
- * Leitura em RSC (ADR-0001): tenta `GET /payouts` direto na API. Enquanto o
- * `PayoutsController`/`FinanceController` não estão finalizados (docs/backend-backlog.md §4.2),
- * caímos para dados de demonstração — a UI e as chamadas já são as definitivas, então plugar o
- * backend real é só remover o fallback de mock. Mutations (onboarding/unlink) já vão pela
- * Server Action-proxy `lib/actions/payouts.ts`.
+ * Leitura em RSC (ADR-0001): `GET /payouts` direto na API — dado real da conta de recebimento
+ * (Q4). Sem conta ainda → `null` (card mostra o CTA "Ativar recebimentos"). O onboarding real
+ * (Stripe Connect Express + Account Link) e o webhook `account.updated` (KYC → ACTIVE) já estão no
+ * backend. Mutations (onboarding/unlink) vão pela Server Action-proxy `lib/actions/payouts.ts`.
+ *
+ * Saldo/extrato (`PayoutBalanceCard`) ainda usam mock — dependem do painel financeiro (Q5).
  */
 
 import { redirect } from "next/navigation"
@@ -18,11 +19,7 @@ import { isApiError } from "@/lib/api/problem-details"
 import { PayoutStatusCard } from "@/components/payouts/payout-status-card"
 import { PayoutBalanceCard } from "@/components/payouts/payout-balance-card"
 import { FeeTransparency } from "@/components/payouts/fee-transparency"
-import {
-  MOCK_PAYOUT_ACCOUNT,
-  MOCK_PAYOUT_BALANCE,
-  MOCK_PAYOUT_TRANSACTIONS,
-} from "@/lib/mocks/payouts"
+import { MOCK_PAYOUT_BALANCE, MOCK_PAYOUT_TRANSACTIONS } from "@/lib/mocks/payouts"
 import type { PayoutAccountDto } from "@/lib/api/payout-types"
 
 export const metadata = { title: "Recebimentos · MarcaAí" }
@@ -30,14 +27,14 @@ export const metadata = { title: "Recebimentos · MarcaAí" }
 export default async function RecebimentosPage() {
   await requireOnboarded()
 
-  // GET /payouts → primeira conta do usuário. Em falta de backend, usa mock (mantém a UI viva).
-  let account: PayoutAccountDto | null = MOCK_PAYOUT_ACCOUNT
+  // GET /payouts → primeira conta do usuário. Sem conta/erro → null (card exibe o CTA de ativação).
+  let account: PayoutAccountDto | null = null
   try {
     const accounts = await serverApiFetch<PayoutAccountDto[]>(endpoints.payouts.root)
     account = accounts?.[0] ?? null
   } catch (err) {
     if (isApiError(err) && err.kind === "unauthorized") redirect("/login")
-    // not_found/server/etc → segue com o mock (backend ainda não finalizado — §4.2).
+    // not_found/server/etc → segue sem conta (null): a UI mostra o estado de ativação.
   }
 
   const isActive = account?.status === "ACTIVE"

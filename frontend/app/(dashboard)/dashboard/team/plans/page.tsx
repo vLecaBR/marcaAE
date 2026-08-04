@@ -12,7 +12,7 @@
 
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, Check, Sparkles, FlaskConical } from "lucide-react"
+import { ArrowLeft, Check, Sparkles } from "lucide-react"
 import { requireOnboarded } from "@/lib/auth/guards"
 import { serverApiFetch } from "@/lib/api/http-client"
 import { endpoints } from "@/lib/api/endpoints"
@@ -45,7 +45,7 @@ export default async function PlansPage() {
     if (isApiError(err) && err.kind === "unauthorized") throw err
   }
 
-  const { billing, isDemo } = await getTeamBilling(teamId)
+  const { billing } = await getTeamBilling(teamId)
   const currentPlan = getPlanConfig(billing.planCode)
   const isTrialing = billing.trial.isTrialing
   const daysRemaining = billing.trial.daysRemaining ?? 0
@@ -54,27 +54,18 @@ export default async function PlansPage() {
     <div className="max-w-5xl space-y-6">
       <ClinicTabs canSeeFinance />
 
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <Link
-            href="/dashboard/team"
-            className="mb-2 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" /> Voltar para a clínica
-          </Link>
-          <h1 className="text-2xl font-semibold">Planos e assinatura</h1>
-          <p className="mt-1 max-w-prose text-sm text-muted-foreground">
-            Quanto maior o plano, menor a taxa por consulta. Escolha o que melhor acompanha o
-            crescimento da sua clínica.
-          </p>
-        </div>
-
-        {isDemo && (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-warning/10 px-3 py-1 text-xs font-medium text-warning">
-            <FlaskConical className="h-3.5 w-3.5" />
-            Dados de demonstração
-          </span>
-        )}
+      <header className="min-w-0">
+        <Link
+          href="/dashboard/team"
+          className="mb-2 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" /> Voltar para a clínica
+        </Link>
+        <h1 className="text-2xl font-semibold">Planos e assinatura</h1>
+        <p className="mt-1 max-w-prose text-sm text-muted-foreground">
+          Quanto maior o plano, menor a taxa por consulta. Escolha o que melhor acompanha o
+          crescimento da sua clínica.
+        </p>
       </header>
 
       {isTrialing && (
@@ -153,7 +144,6 @@ export default async function PlansPage() {
                     teamId={teamId}
                     targetPlan={plan.planCode}
                     direction={direction}
-                    isDemo={isDemo}
                   />
                 )}
               </div>
@@ -161,13 +151,6 @@ export default async function PlansPage() {
           )
         })}
       </div>
-
-      {isDemo && (
-        <p className="text-center text-xs text-muted-foreground">
-          Valores e plano atual ilustrativos. Ao conectar o billing real, esta tela reflete a
-          assinatura verdadeira e habilita a troca de plano automaticamente.
-        </p>
-      )}
     </div>
   )
 }

@@ -77,6 +77,9 @@ public static class DependencyInjection
         services.AddScoped<StripeConnectService>();
         services.AddScoped<ISplitPaymentService>(sp => sp.GetRequiredService<StripeConnectService>());
         services.AddScoped<IStripeConnectWebhookHandler>(sp => sp.GetRequiredService<StripeConnectService>());
+        // Onboarding da conta conectada (Express + Account Link) resolvido por provedor no
+        // PayoutAccountService via IEnumerable<IConnectOnboardingService>.
+        services.AddScoped<IConnectOnboardingService>(sp => sp.GetRequiredService<StripeConnectService>());
         // Split de PIX via Mercado Pago (typed HttpClient). Somado à coleção de ISplitPaymentService,
         // permitindo que o BookingPaymentService resolva MERCADO_PAGO por IEnumerable.
         services.AddHttpClient<ISplitPaymentService, MercadoPagoSplitService>();

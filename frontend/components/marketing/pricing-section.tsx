@@ -23,7 +23,7 @@ const RECOMMENDED_PLAN = "CLINICA"
 
 export function PricingSection() {
   return (
-    <section id="pricing" className="mx-auto max-w-6xl px-6 py-24">
+    <section id="pricing" className="mx-auto max-w-7xl px-6 py-24">
       <div className="mx-auto mb-14 max-w-2xl text-center">
         <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-brand-primary/10 px-3 py-1 text-xs font-medium text-brand-primary">
           <Sparkles size={12} /> 30 dias grátis em qualquer plano
@@ -37,7 +37,7 @@ export function PricingSection() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-3 md:items-start">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4 lg:items-start">
         {PLAN_ORDER.map((code) => {
           const plan = PLAN_CONFIG[code]
           const isRecommended = plan.planCode === RECOMMENDED_PLAN
@@ -48,7 +48,7 @@ export function PricingSection() {
               key={code}
               className={
                 isRecommended
-                  ? "relative flex flex-col rounded-3xl border-2 border-brand-primary bg-card p-8 shadow-xl md:-mt-3 md:pb-10"
+                  ? "relative flex flex-col rounded-3xl border-2 border-brand-primary bg-card p-8 shadow-xl lg:-mt-3 lg:pb-10"
                   : "relative flex flex-col rounded-3xl border border-border/60 bg-card p-8 shadow-sm"
               }
             >

@@ -54,7 +54,7 @@ export default async function PlansPage() {
     if (isApiError(err) && err.kind === "unauthorized") throw err
   }
 
-  const { billing, isDemo } = await getTeamBilling(teamId)
+  const { billing } = await getTeamBilling(teamId)
   const currentPlan = getPlanConfig(billing.planCode)
 
   // Mostra apenas a trilha do próprio usuário (individual só vê individual; clínica só vê clínica).
@@ -157,7 +157,6 @@ export default async function PlansPage() {
                     teamId={teamId}
                     targetPlan={plan.planCode}
                     direction={direction}
-                    isDemo={isDemo}
                   />
                 )}
               </div>

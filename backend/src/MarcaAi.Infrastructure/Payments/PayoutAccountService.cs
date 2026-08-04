@@ -10,11 +10,13 @@ namespace MarcaAi.Infrastructure.Payments;
 /// <summary>
 /// Implementação da gestão de sub-contas de recebimento usando a estratégia de ownership
 /// polimórfico (OwnerType + OwnerId) — sem propriedade de navegação em User/Team.
-/// Fase 2: cria/consulta as PayoutAccount e resolve o recebedor. A integração real de
-/// OAuth (MP) / Account Link (Stripe) é ligada nas Fases 2/3 (marcadores TODO abaixo).
+/// Cria/consulta as PayoutAccount, resolve o recebedor e dispara o onboarding real do provedor
+/// (Account Link do Stripe Connect) via <see cref="IConnectOnboardingService"/>.
 /// </summary>
 public sealed class PayoutAccountService(
-    IApplicationDbContext db, ILogger<PayoutAccountService> logger) : IPayoutAccountService
+    IApplicationDbContext db,
+    IEnumerable<IConnectOnboardingService> onboardingProviders,
+    ILogger<PayoutAccountService> logger) : IPayoutAccountService
 {
     public async Task<OnboardingResult> StartOnboardingAsync(
         PayoutOwnerType ownerType, string ownerId, PaymentProvider provider, CancellationToken ct = default)
@@ -31,7 +33,6 @@ public sealed class PayoutAccountService(
                 OwnerId = ownerId,
                 Provider = provider,
                 Status = PayoutAccountStatus.PENDING,
-                // ExternalAccountId e OnboardingUrl preenchidos quando a integração real for ligada.
                 ExternalAccountId = string.Empty,
             };
             db.PayoutAccounts.Add(account);
@@ -41,8 +42,36 @@ public sealed class PayoutAccountService(
                 ownerType, ownerId, provider, account.Id);
         }
 
-        // TODO (Fase 2 MP / Fase 3 Stripe): iniciar OAuth do Mercado Pago ou criar Express account +
-        // Account Link do Stripe, persistir ExternalAccountId e OnboardingUrl, e mover para o secret store.
+        // Conta já liberada: nada a fazer (idempotente) — não gera novo Account Link.
+        if (account.Status == PayoutAccountStatus.ACTIVE)
+            return new OnboardingResult(account.Id, account.Provider, account.Status, account.OnboardingUrl);
+
+        // Onboarding real do provedor (se houver implementação registrada e configurada). Reutiliza o
+        // ExternalAccountId existente para não duplicar a conta no gateway em retomadas de KYC.
+        var onboarding = onboardingProviders.FirstOrDefault(p => p.Provider == provider);
+        if (onboarding is not null)
+        {
+            var existingExternalId = string.IsNullOrEmpty(account.ExternalAccountId) ? null : account.ExternalAccountId;
+            var result = await onboarding.CreateOnboardingLinkAsync(existingExternalId, $"{ownerType}:{ownerId}", ct);
+            if (result is not null)
+            {
+                account.ExternalAccountId = result.ExternalAccountId;
+                account.OnboardingUrl = result.OnboardingUrl;
+                await db.SaveChangesAsync(ct);
+            }
+            else
+            {
+                logger.LogWarning(
+                    "[Payouts] Provider {Provider} não retornou onboarding (não configurado?). Conta segue PENDING.",
+                    provider);
+            }
+        }
+        else
+        {
+            // Sem implementação para o provedor (ex.: Mercado Pago v1): mantém o esqueleto PENDING.
+            logger.LogInformation("[Payouts] Sem onboarding registrado para {Provider}; conta segue PENDING.", provider);
+        }
+
         return new OnboardingResult(account.Id, account.Provider, account.Status, account.OnboardingUrl);
     }
 

@@ -12,17 +12,75 @@ namespace MarcaAi.Infrastructure.Payments;
 /// <summary>
 /// Split de cartão via Stripe Connect (Destination Charge): cria um PaymentIntent que retém a
 /// application fee do MarcaAí e repassa o líquido para a conta conectada do profissional/clínica.
-/// Também processa os webhooks do Connect (KYC da conta + baixa/reembolso da cobrança).
+/// Também faz o onboarding da conta conectada (Express + Account Link) e processa os webhooks do
+/// Connect (KYC da conta + baixa/reembolso da cobrança).
 /// Chaves lidas de configuração (Stripe:SecretKey / Stripe:ConnectWebhookSecret) — nunca hard-coded.
 /// </summary>
 public sealed class StripeConnectService(
     ApplicationDbContext db, IConfiguration config, ILogger<StripeConnectService> logger)
-    : ISplitPaymentService, IStripeConnectWebhookHandler
+    : ISplitPaymentService, IConnectOnboardingService, IStripeConnectWebhookHandler
 {
     public PaymentProvider Provider => PaymentProvider.STRIPE;
 
     private bool Configured => !string.IsNullOrWhiteSpace(config["Stripe:SecretKey"]);
     private void EnsureKey() => StripeConfiguration.ApiKey = config["Stripe:SecretKey"];
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Onboarding da conta conectada (Express + Account Link)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Cria (ou reaproveita) uma Express account do profissional/clínica e devolve um Account Link
+    /// de KYC. As URLs de retorno/refresh apontam para a tela de Recebimentos do app (App:PublicUrl).
+    /// A liberação real (ChargesEnabled/PayoutsEnabled → ACTIVE) chega pelo webhook `account.updated`.
+    /// </summary>
+    public async Task<ConnectOnboardingResult?> CreateOnboardingLinkAsync(
+        string? existingExternalAccountId, string ownerReference, CancellationToken ct = default)
+    {
+        if (!Configured) { logger.LogWarning("[StripeConnect] SecretKey ausente — onboarding ignorado."); return null; }
+        EnsureKey();
+
+        try
+        {
+            // Reaproveita a conta se já existir (idempotência); senão, cria uma Express BR habilitada
+            // para cartão e transferências (o profissional absorve o custo do gateway, §10.2).
+            var accountId = existingExternalAccountId;
+            if (string.IsNullOrWhiteSpace(accountId))
+            {
+                var account = await new AccountService().CreateAsync(new AccountCreateOptions
+                {
+                    Type = "express",
+                    Country = "BR",
+                    Capabilities = new AccountCapabilitiesOptions
+                    {
+                        CardPayments = new AccountCapabilitiesCardPaymentsOptions { Requested = true },
+                        Transfers = new AccountCapabilitiesTransfersOptions { Requested = true },
+                    },
+                    Metadata = new Dictionary<string, string> { ["ownerRef"] = ownerReference },
+                }, cancellationToken: ct);
+                accountId = account.Id;
+            }
+
+            var baseUrl = (config["App:PublicUrl"] ?? "http://localhost:3000").TrimEnd('/');
+            var returnUrl = $"{baseUrl}/dashboard/recebimentos?onboarding=done";
+            var refreshUrl = $"{baseUrl}/dashboard/recebimentos?onboarding=refresh";
+
+            var link = await new AccountLinkService().CreateAsync(new AccountLinkCreateOptions
+            {
+                Account = accountId,
+                RefreshUrl = refreshUrl,
+                ReturnUrl = returnUrl,
+                Type = "account_onboarding",
+            }, cancellationToken: ct);
+
+            return new ConnectOnboardingResult(accountId!, link.Url);
+        }
+        catch (StripeException ex)
+        {
+            logger.LogError(ex, "[StripeConnect] Falha ao criar onboarding para owner {OwnerRef}", ownerReference);
+            return null;
+        }
+    }
 
     public async Task<SplitChargeResult?> CreateChargeAsync(SplitChargeRequest request, CancellationToken ct = default)
     {

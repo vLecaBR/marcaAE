@@ -4,8 +4,7 @@
  * CTA de troca de plano na pricing table (Fase 8 · §8.1).
  *
  * Inicia o fluxo de billing via `createCheckoutSessionAction` (mesma action da assinatura). O
- * backend decide entre checkout/portal e retorna `{ url }`. Em demonstração (§2.4), a troca fica
- * desativada com aviso amigável — nenhuma mutação real é disparada.
+ * backend decide entre checkout/portal e retorna `{ url }`; qualquer falha cai no alerta de erro.
  *
  * ⚠️ Gap de backend: a action ainda não recebe `planCode` (checkout por plano). Ao abrir esse gap,
  * passar `targetPlan` adiante; a UI aqui não muda.
@@ -21,20 +20,13 @@ interface PlanActionButtonProps {
   teamId: string
   targetPlan: PlanCode
   direction: "upgrade" | "downgrade"
-  isDemo: boolean
 }
 
-export function PlanActionButton({ teamId, direction, isDemo }: PlanActionButtonProps) {
+export function PlanActionButton({ teamId, direction }: PlanActionButtonProps) {
   const [loading, setLoading] = useState(false)
   const isUpgrade = direction === "upgrade"
 
   async function handleClick() {
-    if (isDemo) {
-      alert(
-        "Esta é uma clínica de demonstração. Conecte o billing real para gerenciar a assinatura — a troca de plano fica desativada em modo demo.",
-      )
-      return
-    }
     setLoading(true)
     const result = await createCheckoutSessionAction(teamId)
     if ("url" in result) {
