@@ -74,7 +74,7 @@ export default async function RootPage() {
           </p>
           <div className="mt-9 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Button asChild size="lg" className="h-12 px-7 rounded-xl w-full sm:w-auto">
-              <Link href="/login">Começar grátis — 30 dias por nossa conta</Link>
+              <Link href="/login">Começar grátis 30 dias por nossa conta</Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="h-12 px-7 rounded-xl w-full sm:w-auto">
               <Link href="#features">Conheça os recursos</Link>
