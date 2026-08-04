@@ -24,15 +24,31 @@ function isAllowed(segments: string[]): boolean {
 }
 
 async function handle(req: NextRequest, ctx: RouteContext): Promise<NextResponse> {
-  const { path } = await ctx.params
-  if (!isAllowed(path)) {
+  try {
+    const { path } = await ctx.params
+    if (!isAllowed(path)) {
+      return NextResponse.json(
+        { title: "Rota não permitida pelo BFF.", status: 404 },
+        { status: 404 },
+      )
+    }
+    const targetPath = `/${path.map(encodeURIComponent).join("/")}`
+    return await proxyToApi(req, targetPath)
+  } catch (err) {
+    // TEMPORÁRIO (debug): expõe a exceção não-tratada do BFF no corpo da resposta. Remover depois.
+    const e = err as Error
     return NextResponse.json(
-      { title: "Rota não permitida pelo BFF.", status: 404 },
-      { status: 404 },
+      {
+        title: "BFF_UNHANDLED",
+        detail: e?.message ?? String(err),
+        name: e?.name,
+        stack: e?.stack?.split("\n").slice(0, 6),
+        cause: e?.cause ? String((e.cause as Error)?.message ?? e.cause) : undefined,
+        status: 500,
+      },
+      { status: 500 },
     )
   }
-  const targetPath = `/${path.map(encodeURIComponent).join("/")}`
-  return proxyToApi(req, targetPath)
 }
 
 export const GET = handle
