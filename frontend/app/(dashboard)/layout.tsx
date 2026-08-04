@@ -6,6 +6,7 @@ import { NotificationButton } from "@/components/dashboard/notification-button"
 import { LogoutButton } from "@/components/dashboard/logout-button"
 import { FadeIn } from "@/components/motion/primitives"
 import { TrialBanner } from "@/components/billing/trial-banner"
+import { CheckoutIntentRunner } from "@/components/billing/checkout-intent-runner"
 import { requireOnboarded } from "@/lib/auth/guards"
 import { getPrimaryTeamBilling } from "@/lib/api/billing"
 import { isClinicPlan } from "@/lib/plans/plan-config"
@@ -89,6 +90,8 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/30 md:flex-row dark:bg-background">
+      {/* Q8: dispara o checkout do plano retido logo após o onboarding/login. */}
+      <CheckoutIntentRunner primaryTeamId={billing.teamId} />
       {/* Header mobile */}
       <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border/60 bg-card px-4 md:hidden">
         <Logo size={22} />

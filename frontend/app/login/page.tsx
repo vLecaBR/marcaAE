@@ -1,7 +1,9 @@
 import type { Metadata } from "next"
+import { Suspense } from "react"
 import { Card } from "@/components/ui/card"
 import { Logo } from "@/components/ui/logo"
 import { LoginForm } from "@/components/auth/login-form"
+import { PlanIntentCapture } from "@/components/billing/plan-intent-capture"
 import { ShieldCheck } from "lucide-react"
 
 export const metadata: Metadata = { title: "Entrar" }
@@ -13,6 +15,10 @@ export const metadata: Metadata = { title: "Entrar" }
 export default function LoginPage() {
   return (
     <div className="flex min-h-screen flex-col bg-surface">
+      {/* Q8: guarda o `?plan` da landing para o checkout pós-onboarding. */}
+      <Suspense fallback={null}>
+        <PlanIntentCapture />
+      </Suspense>
       <div className="flex flex-1 items-center justify-center px-6 py-16">
         <div className="w-full max-w-md">
           <Card className="rounded-2xl border-border/60 p-8 shadow-sm sm:p-10">

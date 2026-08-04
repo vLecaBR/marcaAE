@@ -77,7 +77,9 @@ export function PricingSection() {
               </div>
 
               <Link
-                href={SIGNUP_ROUTE}
+                // Q8: planos pagos levam o `planCode` no querystring para reter a intenção de
+                // compra através do login/onboarding (o checkout dispara sozinho depois).
+                href={isFree ? SIGNUP_ROUTE : `${SIGNUP_ROUTE}?plan=${plan.planCode}`}
                 className={
                   isRecommended
                     ? "mt-6 inline-flex w-full items-center justify-center rounded-xl bg-brand-primary py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-primary/90"
