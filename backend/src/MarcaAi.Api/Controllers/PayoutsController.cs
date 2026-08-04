@@ -4,20 +4,30 @@ using MarcaAi.Application.Features.Payouts;
 using MarcaAi.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace MarcaAi.Api.Controllers;
 
 /// <summary>
-/// Onboarding e status das sub-contas de recebimento (split de marketplace).
-/// Esqueleto REST da Fase 2 — os endpoints já resolvem o owner (USER/TEAM) via estratégia
-/// polimórfica; a integração real com Mercado Pago Split (PIX) e Stripe Connect (cartão)
-/// entra nas Fases 2/3. Ver financial-split-spec.md §6.1 e §7.3.
+/// Onboarding e status das sub-contas de recebimento (split de marketplace). Resolve o owner
+/// (USER/TEAM) via estratégia polimórfica; contas de TEAM exigem que o chamador seja gestor
+/// (OWNER/ADMIN) da clínica. Ver financial-split-spec.md §6.1 e §7.3.
 /// </summary>
 [ApiController]
 [Route("api/v1/payouts")]
 [Authorize]
-public sealed class PayoutsController(IPayoutAccountService payouts) : ControllerBase
+public sealed class PayoutsController(IPayoutAccountService payouts, IApplicationDbContext db) : ControllerBase
 {
+    /// <summary>Chamador é gestor (OWNER/ADMIN) da clínica? Gate das contas de recebimento de TEAM.</summary>
+    private async Task<bool> IsTeamManagerAsync(string teamId, string userId, CancellationToken ct)
+    {
+        var role = await db.TeamMembers.AsNoTracking()
+            .Where(m => m.TeamId == teamId && m.UserId == userId)
+            .Select(m => (TeamRole?)m.Role)
+            .FirstOrDefaultAsync(ct);
+        return role is TeamRole.OWNER or TeamRole.ADMIN;
+    }
+
     /// <summary>
     /// Inicia (ou retoma) o onboarding de uma sub-conta. Sem TeamId → conta do profissional (USER);
     /// com TeamId → conta da clínica (TEAM). Retorna o estado e, quando disponível, a URL de KYC.
@@ -30,8 +40,11 @@ public sealed class PayoutsController(IPayoutAccountService payouts) : Controlle
         if (userId is null) return Unauthorized();
 
         var (ownerType, ownerId) = ResolveOwner(userId, body.TeamId);
-        // TODO (RBAC): quando ownerType=TEAM, validar que o usuário é gestor da clínica
-        // (policy "TeamManager") antes de conectar a sub-conta.
+
+        // Contas de clínica (TEAM) só podem ser conectadas por gestor da clínica (OWNER/ADMIN).
+        if (ownerType == PayoutOwnerType.TEAM && !await IsTeamManagerAsync(ownerId, userId, ct))
+            return Problem(statusCode: StatusCodes.Status403Forbidden,
+                detail: "Apenas gestores da clínica podem configurar os recebimentos dela.");
 
         var result = await payouts.StartOnboardingAsync(ownerType, ownerId, body.Provider, ct);
         return Ok(result);
@@ -65,7 +78,10 @@ public sealed class PayoutsController(IPayoutAccountService payouts) : Controlle
     {
         var userId = User.GetUserId();
         if (userId is null) return Unauthorized();
-        // TODO (RBAC): validar que o usuário pertence à clínica (policy "TeamManager").
+
+        if (!await IsTeamManagerAsync(teamId, userId, ct))
+            return Problem(statusCode: StatusCodes.Status403Forbidden,
+                detail: "Apenas gestores da clínica podem ver os recebimentos dela.");
 
         var accounts = await payouts.GetAccountsForOwnerAsync(PayoutOwnerType.TEAM, teamId, ct);
         return Ok(accounts);

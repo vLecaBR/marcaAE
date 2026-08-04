@@ -216,23 +216,44 @@ export function planHasFeature(planCode: string | null | undefined, feature: Pre
   return getPlanConfig(planCode).premiumFeatures.includes(feature)
 }
 
+/** Alguma variante paga desta trilha oferece a feature? (derivado de `PLAN_CONFIG`, sem hardcode). */
+export function featureInAudience(feature: PremiumFeature, audience: PlanAudience): boolean {
+  return PLAN_ORDER.some(
+    (code) =>
+      PLAN_CONFIG[code].audience === audience &&
+      PLAN_CONFIG[code].premiumFeatures.includes(feature),
+  )
+}
+
 /**
- * Acesso premium efetivo (§8.2): durante o trial, tudo liberado; senão, depende do plano.
- * Uma única checagem reutilizada pelo `<PremiumGate>` (8.1) e pela UI de trial (8.2).
+ * Acesso premium efetivo (§8.2, revisado no Q6 para o modelo de 4 planos).
+ *
+ * Regra: plano **pago** tem premium; o **trial só concede premium a um plano pago em teste** — o
+ * plano **free (Solo) nunca vira premium por causa de uma flag de trial** (evita over-grant por
+ * flag legada). Reutilizado pelo `<PremiumGate>` e pela UI de trial.
  */
 export function hasPremiumAccess(args: {
   planCode: string | null | undefined
   isTrialing: boolean
 }): boolean {
-  return args.isTrialing || isPaidPlan(args.planCode)
+  // Free (Solo) não ganha premium mesmo com `isTrialing` — o trial é dos planos pagos.
+  return isPaidPlan(args.planCode)
 }
 
-/** Pode usar uma feature específica: liberada no trial OU incluída no plano atual. */
+/**
+ * Pode usar uma feature específica. Liberada se: o plano atual já inclui a feature, OU há um trial
+ * de um plano **pago** cuja **trilha** (individual/clínica) oferece a feature. Assim, um Solo/Solo
+ * Pro em trial nunca acessa recursos exclusivos de clínica (ex.: `team_finance`).
+ */
 export function canUseFeature(
   feature: PremiumFeature,
   args: { planCode: string | null | undefined; isTrialing: boolean },
 ): boolean {
-  return args.isTrialing || planHasFeature(args.planCode, feature)
+  if (planHasFeature(args.planCode, feature)) return true
+  if (args.isTrialing && isPaidPlan(args.planCode)) {
+    return featureInAudience(feature, getPlanAudience(args.planCode))
+  }
+  return false
 }
 
 /**

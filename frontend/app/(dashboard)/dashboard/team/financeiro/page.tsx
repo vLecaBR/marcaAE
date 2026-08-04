@@ -21,7 +21,6 @@ import { TeamFinanceSummary } from "@/components/finance/team-finance-summary"
 import { ProfessionalRevenueList } from "@/components/finance/professional-revenue-list"
 import { PremiumGate } from "@/components/billing/premium-gate"
 import { getTeamBilling } from "@/lib/api/billing"
-import { MOCK_CLINIC } from "@/lib/mocks/team"
 import type { TeamFinanceSummaryDto } from "@/lib/api/finance-types"
 import type { TeamDetailDto, TeamRoleName, TeamSummaryDto } from "@/lib/api/types"
 
@@ -45,11 +44,10 @@ function emptyTeamFinance(teamId: string): TeamFinanceSummaryDto {
 export default async function TeamFinancePage() {
   await requireOnboarded()
 
-  // Resolve a clínica principal e o papel do usuário nela.
-  let teamId = MOCK_CLINIC.id
-  let clinicName = MOCK_CLINIC.name
-  let role: TeamRoleName = MOCK_CLINIC.role
-  let hasRealClinic = false
+  // Resolve a clínica principal e o papel do usuário nela (API/sessão ditam a identidade — sem mock).
+  let teamId: string | null = null
+  let clinicName = ""
+  let role: TeamRoleName = "MEMBER"
 
   try {
     const teams = (await serverApiFetch<TeamSummaryDto[]>(endpoints.teams.root)) ?? []
@@ -58,11 +56,13 @@ export default async function TeamFinancePage() {
       teamId = detail.id
       clinicName = detail.name
       role = detail.role
-      hasRealClinic = true
     }
   } catch (err) {
     if (isApiError(err) && err.kind === "unauthorized") redirect("/login")
   }
+
+  // Sem clínica real → volta para a visão da clínica (que trata o onboarding "Crie sua clínica").
+  if (!teamId) redirect("/dashboard/team")
 
   const canSeeFinance = role === "OWNER" || role === "ADMIN"
 
@@ -94,16 +94,14 @@ export default async function TeamFinancePage() {
     )
   }
 
-  // Consolidado financeiro real (Q5). Sem clínica real / falha de leitura → resumo vazio.
+  // Consolidado financeiro real (Q5). Falha de leitura → resumo vazio (empty state).
   let finance: TeamFinanceSummaryDto = emptyTeamFinance(teamId)
-  if (hasRealClinic) {
-    try {
-      const res = await serverApiFetch<TeamFinanceSummaryDto>(endpoints.finance.teamSummary(teamId))
-      if (res?.byProfessional) finance = res
-    } catch (err) {
-      if (isApiError(err) && err.kind === "unauthorized") redirect("/login")
-      // Falha de leitura → mantém o resumo vazio (empty state).
-    }
+  try {
+    const res = await serverApiFetch<TeamFinanceSummaryDto>(endpoints.finance.teamSummary(teamId))
+    if (res?.byProfessional) finance = res
+  } catch (err) {
+    if (isApiError(err) && err.kind === "unauthorized") redirect("/login")
+    // Falha de leitura → mantém o resumo vazio (empty state).
   }
 
   return (

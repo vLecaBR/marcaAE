@@ -3,9 +3,8 @@
  * Guarda: `requireOnboarded()` (o RBAC fino por clínica é enforçado pelo backend).
  *
  * Leitura em RSC (ADR-0001): resolve a clínica principal do profissional via `GET /teams` →
- * `GET /teams/{id}` (detalhe + membros + papel do usuário). Sem clínica ainda → empty state
- * "Crie sua clínica"; API indisponível → fallback de identidade (`MOCK_CLINIC`) para a tela seguir
- * renderizável (a substituição do fallback por contrato real de clínica fica para o Q6).
+ * `GET /teams/{id}` (detalhe + membros + papel do usuário). A **API e a sessão ditam a identidade**
+ * da clínica (Q6, sem mocks). Sem clínica (ou API indisponível) → empty state "Crie sua clínica".
  */
 
 import type { Metadata } from "next"
@@ -22,7 +21,6 @@ import { ClinicMembers } from "@/components/team/clinic-members"
 import { ClinicTabs } from "@/components/team/clinic-tabs"
 import { TeamUsageStats } from "@/components/billing/team-usage-stats"
 import { getTeamBilling } from "@/lib/api/billing"
-import { MOCK_CLINIC } from "@/lib/mocks/team"
 import type { TeamDetailDto, TeamSummaryDto } from "@/lib/api/types"
 
 export const metadata: Metadata = { title: "Clínica · MarcaAí" }
@@ -30,11 +28,8 @@ export const metadata: Metadata = { title: "Clínica · MarcaAí" }
 export default async function TeamPage() {
   const me = await requireOnboarded()
 
-  let clinic: TeamDetailDto = MOCK_CLINIC
+  let clinic: TeamDetailDto | null = null
   let otherClinics = 0
-  // Distingue "a API respondeu e o usuário não tem clínica" (→ onboarding "Crie sua clínica")
-  // de "a API está indisponível" (→ tela sempre renderizável com o fallback de identidade).
-  let hasNoClinic = false
 
   try {
     const teams =
@@ -43,16 +38,14 @@ export default async function TeamPage() {
       const primary = teams[0]
       clinic = await serverApiFetch<TeamDetailDto>(endpoints.teams.byId(primary.id))
       otherClinics = teams.length - 1
-    } else {
-      hasNoClinic = true
     }
   } catch (err) {
     if (isApiError(err) && err.kind === "unauthorized") redirect("/login")
-    // Backend indisponível → mantém o fallback de identidade da clínica.
+    // Backend indisponível → segue sem clínica (empty state "Crie sua clínica").
   }
 
-  // Onboarding: usuário real ainda sem clínica → empty state acolhedor (spec §7.2 / §8.2).
-  if (hasNoClinic) {
+  // Sem clínica real (ou API indisponível) → empty state acolhedor (spec §7.2 / §8.2).
+  if (!clinic) {
     return (
       <div className="max-w-4xl space-y-6">
         <ClinicTabs canSeeFinance={false} />

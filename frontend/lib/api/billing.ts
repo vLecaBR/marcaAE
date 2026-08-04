@@ -1,10 +1,10 @@
 /**
- * Leitura de billing em RSC com fallback gracioso — Fase 8 (§2.4 / §8).
+ * Leitura de billing em RSC — Fase 8 / Q6.
  *
- * `server-only`: usa `serverApiFetch` direto (ADR-0001). Enquanto o contrato de plano/trial de
- * `GET /teams/{teamId}/billing` não está finalizado, cai para `MOCK_TEAM_BILLING` (trial de 30 dias)
- * com `isDemo: true` para a UI de trial/gating ficar sempre visível. Plugar o backend real é só o
- * endpoint passar a responder — a assinatura (`TeamBillingDto`) não muda.
+ * `server-only`: usa `serverApiFetch` direto (ADR-0001). A **API e a sessão ditam o plano** de ponta
+ * a ponta. Enquanto `GET /teams/{teamId}/billing` não expõe o contrato completo (planCode/trial/
+ * usage/limits), caímos para um **default neutro do plano free (Solo, sem trial)** — nunca um mock
+ * de demonstração. Assim, um usuário free não recebe premium por flag legada de trial (ver Q6).
  */
 
 import "server-only"
@@ -12,41 +12,55 @@ import "server-only"
 import { serverApiFetch } from "@/lib/api/http-client"
 import { endpoints } from "@/lib/api/endpoints"
 import { isApiError } from "@/lib/api/problem-details"
-import { MOCK_TEAM_BILLING } from "@/lib/mocks/billing"
+import { getPlanConfig, BASE_PLAN_CODE } from "@/lib/plans/plan-config"
 import type { TeamBillingDto } from "@/lib/api/billing-types"
 import type { TeamSummaryDto } from "@/lib/api/types"
 
 export interface BillingResult {
   billing: TeamBillingDto
-  /** `true` quando os dados vêm do mock (backend indisponível/pendente) — dispara o selo "Demo". */
-  isDemo: boolean
 }
 
-/** Billing de uma clínica específica, com fallback mock gracioso (§2.4). */
+/** Default neutro do plano free (Solo): sem trial, limites do próprio Solo, uso zerado. */
+function soloDefaultBilling(teamId: string): TeamBillingDto {
+  const solo = getPlanConfig(BASE_PLAN_CODE)
+  return {
+    teamId,
+    planCode: BASE_PLAN_CODE,
+    status: "INACTIVE",
+    active: false,
+    currentPeriodEnd: null,
+    trial: { isTrialing: false, trialEndsAt: null, daysRemaining: null },
+    usage: { bookingsThisMonth: 0, membersCount: 0, eventTypesCount: 0 },
+    limits: solo.limits,
+  }
+}
+
+/** O payload traz o contrato completo de plano/trial? Senão, usamos o default neutro. */
+function isFullBilling(b: Partial<TeamBillingDto> | null | undefined): b is TeamBillingDto {
+  return !!b && !!b.planCode && !!b.trial && !!b.limits && !!b.usage
+}
+
+/** Billing de uma clínica específica. Sem contrato completo / falha → default neutro do Solo. */
 export async function getTeamBilling(teamId: string): Promise<BillingResult> {
   try {
-    const billing = await serverApiFetch<TeamBillingDto>(endpoints.teams.billing(teamId))
-    // Guarda defensiva: enquanto o backend não expõe o contrato novo (planCode/trial), usa o mock.
-    if (billing?.trial && billing.planCode) return { billing, isDemo: false }
-    return { billing: MOCK_TEAM_BILLING, isDemo: true }
+    const b = await serverApiFetch<Partial<TeamBillingDto>>(endpoints.teams.billing(teamId))
+    return { billing: isFullBilling(b) ? b : soloDefaultBilling(teamId) }
   } catch (err) {
-    // Auth já foi resolvida pela guarda da rota/layout; qualquer falha aqui → demonstração.
-    if (isApiError(err) && err.kind === "unauthorized") return { billing: MOCK_TEAM_BILLING, isDemo: true }
-    return { billing: MOCK_TEAM_BILLING, isDemo: true }
+    if (isApiError(err) && err.kind === "unauthorized") return { billing: soloDefaultBilling(teamId) }
+    return { billing: soloDefaultBilling(teamId) }
   }
 }
 
 /**
  * Resolve a clínica principal do usuário e seu billing — usado pelo banner de trial no layout,
- * que não conhece um `teamId`. Sem clínica real ainda → demonstração (a UI de trial permanece
- * visível durante o onboarding, coerente com o empty state "Crie sua clínica" da F7.2/§8.2).
+ * que não conhece um `teamId`. Sem clínica → default neutro do Solo (sem trial).
  */
 export async function getPrimaryTeamBilling(): Promise<BillingResult> {
   try {
     const teams = (await serverApiFetch<TeamSummaryDto[]>(endpoints.teams.root)) ?? []
     if (teams.length > 0) return getTeamBilling(teams[0].id)
-    return { billing: MOCK_TEAM_BILLING, isDemo: true }
+    return { billing: soloDefaultBilling("") }
   } catch {
-    return { billing: MOCK_TEAM_BILLING, isDemo: true }
+    return { billing: soloDefaultBilling("") }
   }
 }

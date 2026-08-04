@@ -168,13 +168,18 @@ public sealed class StripeBillingService(
         target.Quantity = QuantityOf(sub);
     }
 
-    /// <summary>price_id → (PlanCode, DefaultFeeBps). Tabela §4.3: Solo 3,49% / Clínica 2,49% / Pro 1,99%.</summary>
+    /// <summary>
+    /// price_id → (PlanCode, DefaultFeeBps) usando o catálogo canônico (`PlanCatalog`, Q1/Q6):
+    /// Solo 10% · Solo Pro 5% · Clínica 2,49% · Clínica Pro 1,99%. Price ids configuráveis em
+    /// `Stripe:Prices:{Solo|SoloPro|Clinica|ClinicaPro}` — nunca hard-coded.
+    /// </summary>
     private (string? PlanCode, int? DefaultFeeBps) MapPlan(string? priceId)
     {
         if (string.IsNullOrWhiteSpace(priceId)) return (null, null);
-        if (priceId == config["Stripe:Prices:Solo"]) return ("solo", 349);
-        if (priceId == config["Stripe:Prices:Clinica"]) return ("clinica", 249);
-        if (priceId == config["Stripe:Prices:Pro"]) return ("pro", 199);
+        if (priceId == config["Stripe:Prices:Solo"]) return (PlanCatalog.Solo, PlanCatalog.SoloFeeBps);
+        if (priceId == config["Stripe:Prices:SoloPro"]) return (PlanCatalog.SoloPro, PlanCatalog.SoloProFeeBps);
+        if (priceId == config["Stripe:Prices:Clinica"]) return (PlanCatalog.Clinica, PlanCatalog.ClinicaFeeBps);
+        if (priceId == config["Stripe:Prices:ClinicaPro"]) return (PlanCatalog.ClinicaPro, PlanCatalog.ClinicaProFeeBps);
         return (null, null);
     }
 

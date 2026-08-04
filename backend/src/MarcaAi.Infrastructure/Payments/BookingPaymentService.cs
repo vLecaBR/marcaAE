@@ -1,4 +1,5 @@
 using MarcaAi.Application.Common.Interfaces;
+using MarcaAi.Application.Features.Billing;
 using MarcaAi.Application.Features.Payments;
 using MarcaAi.Domain.Enums;
 using MarcaAi.Infrastructure.Persistence;
@@ -20,19 +21,20 @@ public sealed class BookingPaymentService(
     IConfiguration config,
     ILogger<BookingPaymentService> logger) : IBookingPaymentService
 {
-    // Defaults da plataforma (§8): PLATFORM_FEE_BPS=250 (2,5%), PLATFORM_FEE_FIXED_CENTS=100 (R$1,00).
-    // Usa o indexer de IConfiguration (Abstractions) para não depender do ConfigurationBinder.
-    private int DefaultFeeBps => ParseIntOr(config["Platform:FeeBps"], 250);
-    private int DefaultFeeFixedCents => ParseIntOr(config["Platform:FeeFixedCents"], 100);
+    // Taxa **só percentual** por plano (Q1/Q6): a fee vem do plano do recebedor, não de um default
+    // fixo. Componente fixo por consulta descontinuado (0) — decisão de produto 2026-08-04.
+    private int DefaultFeeFixedCents => ParseIntOr(config["Platform:FeeFixedCents"], 0);
 
     private static int ParseIntOr(string? value, int fallback) =>
         int.TryParse(value, out var parsed) ? parsed : fallback;
 
     /// <summary>
-    /// Resolve o percentual da taxa de split (basis points) por ordem de precedência (§4.3):
+    /// Resolve o percentual da taxa de split (basis points) por ordem de precedência (§4.3 + Q6):
     /// 1º <c>PayoutAccount.FeePercentBps</c> (override da sub-conta);
-    /// 2º <c>Subscription.DefaultFeeBps</c> do plano da clínica (quando o recebedor é um TEAM);
-    /// 3º <c>Platform:FeeBps</c> do appsettings (padrão da plataforma).
+    /// 2º recebedor TEAM → <c>Subscription.DefaultFeeBps</c>, senão o feeBps do <c>PlanCode</c> via
+    ///    <see cref="PlanCatalog"/>, senão a taxa base de clínica;
+    /// 3º recebedor USER (individual) → plano free <b>Solo (10%)</b>. A taxa de 5% do Solo Pro
+    ///    depende do billing por usuário (modelagem em aberto do Q3 — follow-up).
     /// </summary>
     private async Task<int> ResolveFeePercentBpsAsync(
         Application.Features.Payouts.PayoutAccountDto receiver, CancellationToken ct)
@@ -41,18 +43,20 @@ public sealed class BookingPaymentService(
         if (receiver.FeePercentBps is { } accountOverride)
             return accountOverride;
 
-        // 2º — plano da clínica: só quando o recebedor é o próprio TEAM (OwnerId = TeamId, §4.1).
+        // 2º — recebedor é a clínica (TEAM): usa a fee do plano da assinatura.
         if (receiver.OwnerType == PayoutOwnerType.TEAM)
         {
-            var planBps = await db.Subscriptions.AsNoTracking()
+            var sub = await db.Subscriptions.AsNoTracking()
                 .Where(s => s.TeamId == receiver.OwnerId)
-                .Select(s => s.DefaultFeeBps)
+                .Select(s => new { s.DefaultFeeBps, s.PlanCode })
                 .FirstOrDefaultAsync(ct);
-            if (planBps is { } bps) return bps;
+            if (sub?.DefaultFeeBps is { } bps) return bps;
+            if (!string.IsNullOrEmpty(sub?.PlanCode)) return PlanCatalog.FeeBpsFor(sub!.PlanCode);
+            return PlanCatalog.ClinicaFeeBps; // clínica sem assinatura mapeada → taxa base de clínica
         }
 
-        // 3º — padrão da plataforma.
-        return DefaultFeeBps;
+        // 3º — recebedor individual (USER): plano free Solo (10%).
+        return PlanCatalog.SoloFeeBps;
     }
 
     public async Task<PaymentInitResult> InitiateAsync(
