@@ -2,9 +2,10 @@
  * Tela de Planos / Upgrade (Fase 8 · §8.1). Rota: `/dashboard/team/plans` (= `PLANS_ROUTE`).
  * Guarda: `requireOnboarded()`. Destino dos CTAs do `PremiumGate` e do `TrialBanner`.
  *
- * Pricing table dos três tiers (SOLO/CLINICA/PRO) a partir do mapa canônico `PLAN_CONFIG` — nenhum
- * preço/limite hardcoded aqui (§8.1). Identifica o plano atual pelo `TeamBillingDto` (fallback mock
- * §2.4) e rotula os demais como upgrade/downgrade. CLINICA em destaque ("Popular").
+ * Pricing table dos quatro planos (SOLO/SOLO_PRO/CLINICA/CLINICA_PRO) a partir do mapa canônico
+ * `PLAN_CONFIG` — nenhum preço/limite hardcoded aqui (§8.1). Identifica o plano atual pelo
+ * `TeamBillingDto` (fallback mock §2.4) e rotula os demais como upgrade/downgrade. CLINICA em
+ * destaque ("Popular").
  */
 
 import type { Metadata } from "next"
