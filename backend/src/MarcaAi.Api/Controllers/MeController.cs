@@ -39,7 +39,17 @@ public sealed class MeController(IApplicationDbContext db) : ControllerBase
         if (Enum.TryParse<Theme>(input.Theme, ignoreCase: true, out var theme)) user.Theme = theme;
         if (!string.IsNullOrWhiteSpace(input.BrandColor)) user.BrandColor = input.BrandColor;
 
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            // TEMPORÁRIO (debug): expõe a causa real do 500 no corpo da resposta. Remover depois.
+            var detail = ex.InnerException?.Message ?? ex.Message;
+            return Problem(statusCode: StatusCodes.Status500InternalServerError,
+                title: ex.GetType().Name, detail: detail);
+        }
         return NoContent();
     }
 
