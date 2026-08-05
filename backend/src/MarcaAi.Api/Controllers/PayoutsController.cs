@@ -47,7 +47,25 @@ public sealed class PayoutsController(IPayoutAccountService payouts, IApplicatio
                 detail: "Apenas gestores da clínica podem configurar os recebimentos dela.");
 
         var result = await payouts.StartOnboardingAsync(ownerType, ownerId, body.Provider, ct);
-        return Ok(result);
+
+        // Mapeia a causa real (bug 3) em vez de devolver 200 com URL vazia:
+        //  - NotConfigured → 503 (config do ambiente: SecretKey / App:PublicUrl / Connect no dashboard)
+        //  - ProviderError → 502 (o gateway recusou; detail traz a causa do Stripe)
+        // Padrão alinhado a BookingsController (502 BadGateway para falha de provedor).
+        return result.Outcome switch
+        {
+            OnboardingOutcome.Success => Ok(result),
+            OnboardingOutcome.NotConfigured => Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "Recebimentos indisponíveis",
+                detail: result.ErrorMessage ?? "Recebimentos ainda não estão configurados nesta conta."),
+            OnboardingOutcome.ProviderError => Problem(
+                statusCode: StatusCodes.Status502BadGateway,
+                title: "Falha no provedor de pagamentos",
+                detail: result.ErrorMessage ?? "O provedor recusou a abertura do cadastro. Tente novamente."),
+            _ => Problem(statusCode: StatusCodes.Status502BadGateway,
+                detail: "Não foi possível iniciar o cadastro de recebimentos."),
+        };
     }
 
     /// <summary>Lista as sub-contas do profissional autenticado (USER).</summary>

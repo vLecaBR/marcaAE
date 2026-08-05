@@ -53,17 +53,30 @@ public sealed class PayoutAccountService(
         {
             var existingExternalId = string.IsNullOrEmpty(account.ExternalAccountId) ? null : account.ExternalAccountId;
             var result = await onboarding.CreateOnboardingLinkAsync(existingExternalId, $"{ownerType}:{ownerId}", ct);
-            if (result is not null)
+
+            switch (result.Outcome)
             {
-                account.ExternalAccountId = result.ExternalAccountId;
-                account.OnboardingUrl = result.OnboardingUrl;
-                await db.SaveChangesAsync(ct);
-            }
-            else
-            {
-                logger.LogWarning(
-                    "[Payouts] Provider {Provider} não retornou onboarding (não configurado?). Conta segue PENDING.",
-                    provider);
+                case OnboardingLinkOutcome.Success:
+                    account.ExternalAccountId = result.ExternalAccountId!;
+                    account.OnboardingUrl = result.OnboardingUrl;
+                    await db.SaveChangesAsync(ct);
+                    break;
+
+                // Não mascara mais a causa (bug 3): propaga config vs falha do provedor para o controller
+                // mapear 503/502. A conta segue PENDING, mas o chamador recebe o motivo acionável.
+                case OnboardingLinkOutcome.NotConfigured:
+                    logger.LogWarning(
+                        "[Payouts] Onboarding {Provider} indisponível por config ({Code}) para owner {OwnerType}/{OwnerId}.",
+                        provider, result.ErrorCode, ownerType, ownerId);
+                    return new OnboardingResult(account.Id, account.Provider, account.Status, null,
+                        OnboardingOutcome.NotConfigured, result.ErrorCode, result.Message);
+
+                case OnboardingLinkOutcome.ProviderError:
+                    logger.LogError(
+                        "[Payouts] Provider {Provider} recusou onboarding ({Code}) para owner {OwnerType}/{OwnerId}.",
+                        provider, result.ErrorCode, ownerType, ownerId);
+                    return new OnboardingResult(account.Id, account.Provider, account.Status, null,
+                        OnboardingOutcome.ProviderError, result.ErrorCode, result.Message);
             }
         }
         else

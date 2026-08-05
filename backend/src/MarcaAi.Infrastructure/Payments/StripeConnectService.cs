@@ -34,10 +34,28 @@ public sealed class StripeConnectService(
     /// de KYC. As URLs de retorno/refresh apontam para a tela de Recebimentos do app (App:PublicUrl).
     /// A liberação real (ChargesEnabled/PayoutsEnabled → ACTIVE) chega pelo webhook `account.updated`.
     /// </summary>
-    public async Task<ConnectOnboardingResult?> CreateOnboardingLinkAsync(
+    public async Task<ConnectOnboardingResult> CreateOnboardingLinkAsync(
         string? existingExternalAccountId, string ownerReference, CancellationToken ct = default)
     {
-        if (!Configured) { logger.LogWarning("[StripeConnect] SecretKey ausente — onboarding ignorado."); return null; }
+        // (1) Config ausente → NotConfigured (503), nunca "sucesso vazio" (bug 3).
+        if (!Configured)
+        {
+            logger.LogWarning("[StripeConnect] SecretKey ausente — onboarding não pode iniciar (owner {OwnerRef}).", ownerReference);
+            return ConnectOnboardingResult.NotConfigured(
+                "Recebimentos ainda não estão configurados nesta conta. Fale com o suporte.",
+                "secret_key_missing");
+        }
+
+        // (2) App:PublicUrl precisa ser uma URL pública https (o Account Link falha com localhost/vazio).
+        if (!TryResolvePublicBaseUrl(out var baseUrl, out var urlError))
+        {
+            logger.LogError("[StripeConnect] App:PublicUrl inválida ('{Configured}') — Account Link falharia. {Err}",
+                config["App:PublicUrl"], urlError);
+            return ConnectOnboardingResult.NotConfigured(
+                "Recebimentos ainda não estão configurados nesta conta. Fale com o suporte.",
+                "public_url_invalid");
+        }
+
         EnsureKey();
 
         try
@@ -59,9 +77,11 @@ public sealed class StripeConnectService(
                     Metadata = new Dictionary<string, string> { ["ownerRef"] = ownerReference },
                 }, cancellationToken: ct);
                 accountId = account.Id;
+                logger.LogInformation(
+                    "[StripeConnect] Express account criada {AccountId} (owner {OwnerRef}, chargesEnabled={ChargesEnabled}).",
+                    account.Id, ownerReference, account.ChargesEnabled);
             }
 
-            var baseUrl = (config["App:PublicUrl"] ?? "http://localhost:3000").TrimEnd('/');
             var returnUrl = $"{baseUrl}/dashboard/recebimentos?onboarding=done";
             var refreshUrl = $"{baseUrl}/dashboard/recebimentos?onboarding=refresh";
 
@@ -73,14 +93,66 @@ public sealed class StripeConnectService(
                 Type = "account_onboarding",
             }, cancellationToken: ct);
 
-            return new ConnectOnboardingResult(accountId!, link.Url);
+            return ConnectOnboardingResult.Ok(accountId!, link.Url);
         }
         catch (StripeException ex)
         {
-            logger.LogError(ex, "[StripeConnect] Falha ao criar onboarding para owner {OwnerRef}", ownerReference);
-            return null;
+            // (3) Falha do provedor (Connect desabilitado, perfil da plataforma incompleto, account_invalid…):
+            // propaga a causa real em vez de virar null silencioso (bug 3).
+            var code = ex.StripeError?.Code ?? ex.StripeError?.Type;
+            logger.LogError(ex,
+                "[StripeConnect] Falha do provedor ao criar onboarding (owner {OwnerRef}, code={Code}).",
+                ownerReference, code);
+            return ConnectOnboardingResult.ProviderError(code, MapStripeMessage(code, ex.Message));
         }
     }
+
+    /// <summary>
+    /// Valida App:PublicUrl: precisa ser absoluta e http/https. Em produção, exige https e host público
+    /// (não-localhost) — senão o Account Link do Stripe é rejeitado. Em Development, localhost é aceito.
+    /// </summary>
+    private bool TryResolvePublicBaseUrl(out string baseUrl, out string? error)
+    {
+        baseUrl = string.Empty;
+        error = null;
+
+        var raw = config["App:PublicUrl"];
+        if (string.IsNullOrWhiteSpace(raw)) { error = "App:PublicUrl vazia."; return false; }
+
+        if (!Uri.TryCreate(raw.TrimEnd('/'), UriKind.Absolute, out var uri)
+            || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            error = $"App:PublicUrl não é uma URL absoluta http(s): '{raw}'.";
+            return false;
+        }
+
+        var isDev = string.Equals(
+            config["ASPNETCORE_ENVIRONMENT"] ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+            "Development", StringComparison.OrdinalIgnoreCase);
+
+        var isLocal = uri.IsLoopback
+            || uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase);
+
+        if (!isDev && (uri.Scheme != Uri.UriSchemeHttps || isLocal))
+        {
+            error = $"Em produção App:PublicUrl deve ser https e pública (recebido: '{raw}').";
+            return false;
+        }
+
+        baseUrl = uri.GetLeftPart(UriPartial.Authority);
+        return true;
+    }
+
+    /// <summary>Traduz códigos comuns do Stripe Connect em mensagens acionáveis (config vs KYC).</summary>
+    private static string MapStripeMessage(string? code, string fallback) => code switch
+    {
+        // Plataforma sem Connect habilitado / perfil incompleto no dashboard do Stripe.
+        "account_invalid" or "platform_api_key_expired" =>
+            "Não foi possível abrir o cadastro no Stripe. Verifique se o Connect está habilitado e o perfil da plataforma está completo.",
+        _ => string.IsNullOrWhiteSpace(fallback)
+            ? "O provedor de pagamentos recusou a abertura do cadastro. Tente novamente em instantes."
+            : fallback,
+    };
 
     public async Task<SplitChargeResult?> CreateChargeAsync(SplitChargeRequest request, CancellationToken ct = default)
     {

@@ -33,6 +33,17 @@ export async function startPayoutOnboardingAction(
   } catch (err) {
     if (isApiError(err)) {
       if (err.kind === "unauthorized") return { error: "Sua sessão expirou. Entre novamente." }
+      // Bug 3: o backend agora envia a causa real em `detail`:
+      //  - payment_provider (502): o gateway recusou (Connect off / perfil incompleto / URL inválida)
+      //  - server (503): recebimentos ainda não configurados neste ambiente
+      // Repassamos a mensagem acionável para o card; só caímos no genérico se `detail` vier vazio.
+      if (err.kind === "payment_provider") {
+        return {
+          error:
+            err.problem.detail ||
+            "O provedor de pagamentos recusou a abertura do cadastro. Tente novamente em instantes.",
+        }
+      }
       return { error: err.problem.detail || "Falha ao iniciar o cadastro de recebimentos." }
     }
     throw err
