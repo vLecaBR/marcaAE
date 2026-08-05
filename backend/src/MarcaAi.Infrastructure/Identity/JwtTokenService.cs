@@ -13,6 +13,7 @@ namespace MarcaAi.Infrastructure.Identity;
 public sealed class JwtTokenService(IConfiguration config) : IJwtTokenService
 {
     // Claims customizadas (as policies em Program.cs dependem de "onboarded").
+    public const string ClaimName = "name";
     public const string ClaimUsername = "username";
     public const string ClaimOnboarded = "onboarded";
     public const string ClaimTimeZone = "timeZone";
@@ -37,6 +38,8 @@ public sealed class JwtTokenService(IConfiguration config) : IJwtTokenService
         {
             new(JwtRegisteredClaimNames.Sub, user.Id),
             new(JwtRegisteredClaimNames.Email, user.Email),
+            // Nome de exibição (ex.: "Dr teste"), distinto do `username` (handle da URL pública).
+            new(ClaimName, user.Name ?? string.Empty),
             new(ClaimUsername, user.Username ?? string.Empty),
             new(ClaimOnboarded, user.Onboarded ? "true" : "false"),
             new(ClaimTimeZone, user.TimeZone),

@@ -153,6 +153,7 @@ public sealed class GoogleAuthController(
         {
             Id = user.Id,
             Email = user.Email,
+            Name = user.Name,
             Username = user.Username,
             Onboarded = user.Onboarded,
             TimeZone = user.TimeZone,

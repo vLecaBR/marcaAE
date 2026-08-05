@@ -10,6 +10,8 @@
 export interface MeDto {
   id: string
   email: string
+  /** Nome de exibição (ex.: "Dr teste"). Distinto de `username` (handle da URL pública). */
+  name: string | null
   username: string | null
   onboarded: boolean
   timeZone: string

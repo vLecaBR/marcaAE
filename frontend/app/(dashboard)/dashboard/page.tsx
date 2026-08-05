@@ -51,7 +51,8 @@ export default async function DashboardPage() {
 
   const todayCount = upcomingBookings.filter((b) => isToday(b.startTime)).length
 
-  const firstName = user.username ?? user.email.split("@")[0]
+  // Nome de exibição real (ex.: "Dr teste"); só cai no handle/e-mail se o nome não existir.
+  const firstName = user.name ?? user.username ?? user.email.split("@")[0]
   const username  = user.username
 
   const publicLink = username ? `marca-ai-app.vercel.app/${username}` : ""

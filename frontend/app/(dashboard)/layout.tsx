@@ -34,9 +34,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-/** Nome de exibição e iniciais derivados do `MeDto` (a API não retorna name/avatar). */
+/** Nome de exibição e iniciais derivados do `MeDto` (nome real → handle → e-mail como fallback). */
 function display(user: MeDto): { name: string; initials: string } {
-  const name = user.username ?? user.email.split("@")[0]
+  const name = user.name ?? user.username ?? user.email.split("@")[0]
   return { name, initials: name.charAt(0).toUpperCase() || "U" }
 }
 

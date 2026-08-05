@@ -98,6 +98,7 @@ public sealed class AuthController(
         {
             Id = id,
             Email = User.FindFirst("email")?.Value ?? string.Empty,
+            Name = User.FindFirst("name")?.Value is { Length: > 0 } n ? n : null,
             Username = User.FindFirst("username")?.Value is { Length: > 0 } u ? u : null,
             Onboarded = User.FindFirst("onboarded")?.Value == "true",
             TimeZone = User.FindFirst("timeZone")?.Value ?? "America/Sao_Paulo",
@@ -117,6 +118,7 @@ public sealed class AuthController(
     {
         Id = u.Id,
         Email = u.Email,
+        Name = u.Name,
         Username = u.Username,
         Onboarded = u.Onboarded,
         TimeZone = u.TimeZone,
