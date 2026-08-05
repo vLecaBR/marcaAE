@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { Logo } from "@/components/ui/logo"
 import { Input } from "@/components/ui/input"
 import { NavLink } from "@/components/dashboard/nav-link"
@@ -22,10 +23,12 @@ import {
   Clock,
   Search,
   ChevronDown,
+  CreditCard,
 } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -63,6 +66,14 @@ function UserDropdown({ user, mobile = false }: { user: MeDto; mobile?: boolean 
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel>Minha conta</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {/* Bug 2: entrada de planos acessível no header mobile (a bottom nav está lotada) e no rodapé desktop. */}
+        <DropdownMenuItem asChild>
+          <Link href="/dashboard/plans" className="cursor-pointer">
+            <CreditCard className="mr-2 h-4 w-4" />
+            Planos e assinatura
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <div className="p-1">
           <LogoutButton />
@@ -126,6 +137,8 @@ export default async function DashboardLayout({
             Configurações
           </div>
           <div className="space-y-0.5">
+            {/* Bug 2: ponto de entrada sempre visível para a tela neutra de planos (não condicionar a clínica). */}
+            <NavLink href="/dashboard/plans" icon={<CreditCard />}>Planos e assinatura</NavLink>
             <NavLink href="/settings/profile" icon={<SettingsIcon />}>Perfil</NavLink>
             <NavLink href="/settings/availability" icon={<Clock />}>Disponibilidade</NavLink>
           </div>

@@ -8,12 +8,13 @@
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { m } from "motion/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Mail, CheckCircle2, Loader2 } from "lucide-react"
+import { savePlanIntentAll, isValidPaidPlan } from "@/lib/billing/plan-intent"
 
 const schema = z.object({
   email: z.string().email("Informe um e-mail válido."),
@@ -26,6 +27,23 @@ const GOOGLE_START_URL = `${API}/api/v1/auth/google/start`
 
 export function LoginForm() {
   const [sent, setSent] = useState<string | null>(null)
+  // Bug 1: leva o plano retido para dentro do fluxo OAuth (`?plan=`) — o backend o ecoa no state e
+  // no redirect final, e o cookie same-site garante a intenção mesmo se o localStorage se perder.
+  const [googleUrl, setGoogleUrl] = useState(GOOGLE_START_URL)
+
+  useEffect(() => {
+    const plan = new URLSearchParams(window.location.search).get("plan")
+    if (isValidPaidPlan(plan)) {
+      setGoogleUrl(`${GOOGLE_START_URL}?plan=${encodeURIComponent(plan)}`)
+    }
+  }, [])
+
+  /** Persiste a intenção (cookie + localStorage) imediatamente antes de sair para o Google. */
+  function handleGoogleClick() {
+    const plan = new URLSearchParams(window.location.search).get("plan")
+    savePlanIntentAll(plan)
+  }
+
   const {
     register,
     handleSubmit,
@@ -70,7 +88,7 @@ export function LoginForm() {
   return (
     <div className="space-y-5">
       <Button asChild variant="outline" className="h-11 w-full gap-2.5 rounded-xl">
-        <a href={GOOGLE_START_URL}>
+        <a href={googleUrl} onClick={handleGoogleClick}>
           <GoogleIcon /> Continuar com Google
         </a>
       </Button>

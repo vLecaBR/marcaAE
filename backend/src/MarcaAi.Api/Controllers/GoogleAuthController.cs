@@ -38,12 +38,24 @@ public sealed class GoogleAuthController(
     /// <summary>Prefixo no Identifier do token para distinguir o handoff do Google de um magic link.</summary>
     private const string HandoffIdentifierPrefix = "google-handoff:";
 
-    /// <summary>Inicia o fluxo — redireciona para o consentimento do Google.</summary>
+    /// <summary>Chave do plano retido carregada no state do OAuth (bug 1).</summary>
+    private const string PlanStateKey = "plan";
+
+    /// <summary>Tamanho máximo defensivo do código de plano ecoado (ex.: "CLINICA_PRO").</summary>
+    private const int MaxPlanCodeLength = 32;
+
+    /// <summary>
+    /// Inicia o fluxo — redireciona para o consentimento do Google. Se um <paramref name="plan"/>
+    /// (intenção de checkout) vier da tela de login, é guardado em <c>Items</c> das
+    /// <see cref="AuthenticationProperties"/>: o handler serializa isso no <c>state</c> do OAuth,
+    /// que retorna intacto no <see cref="Complete"/> — sobrevivendo ao round-trip pelo Google (bug 1).
+    /// </summary>
     [AllowAnonymous]
     [HttpGet("start")]
-    public IActionResult Start()
+    public IActionResult Start([FromQuery] string? plan = null)
     {
         var props = new AuthenticationProperties { RedirectUri = Url.Action(nameof(Complete)) };
+        if (IsPlausiblePlanCode(plan)) props.Items[PlanStateKey] = plan;
         return Challenge(props, "Google");
     }
 
@@ -92,8 +104,24 @@ public sealed class GoogleAuthController(
 
         // Contrato: docs/backend-backlog.md → "Contrato de redirect do front".
         var frontend = (config["Cors:FrontendOrigin"] ?? "http://localhost:3000").TrimEnd('/');
-        return Redirect($"{frontend}/auth/callback?code={Uri.EscapeDataString(code)}");
+        var url = $"{frontend}/auth/callback?code={Uri.EscapeDataString(code)}";
+
+        // Bug 1: repassa a intenção de plano recuperada do state para o `/auth/callback` do front,
+        // que grava o cookie same-site e dispara o checkout ao chegar no dashboard.
+        if (result.Properties.Items.TryGetValue(PlanStateKey, out var plan) && IsPlausiblePlanCode(plan))
+            url += $"&plan={Uri.EscapeDataString(plan!)}";
+
+        return Redirect(url);
     }
+
+    /// <summary>
+    /// Validação defensiva do código de plano ecoado (não é a fonte da verdade — o front revalida
+    /// contra o catálogo). Aceita apenas [A-Z0-9_] curto, evitando open-redirect/param injection.
+    /// </summary>
+    private static bool IsPlausiblePlanCode(string? plan) =>
+        !string.IsNullOrEmpty(plan)
+        && plan.Length <= MaxPlanCodeLength
+        && plan.All(c => c is (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '_');
 
     /// <summary>
     /// Troca o código de handoff pela sessão (uso único). Chamado server-side pelo /auth/callback do
